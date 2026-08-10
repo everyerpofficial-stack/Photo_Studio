@@ -142,7 +142,7 @@ function ClientDetail() {
             )}
             {can("viewFinance") && (
               <FormDialog title="Record payment" triggerLabel="Record payment">
-                {(close) => <PaymentForm onDone={close} />}
+                {(close) => <PaymentForm initial={{ client_id: clientId } as any} onDone={close} />}
               </FormDialog>
             )}
             {can("editProjects") && (

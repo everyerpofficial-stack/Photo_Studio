@@ -196,6 +196,9 @@ function PartnersPage() {
                     max="100"
                     defaultValue={Number(p.partner.profit_share)}
                     className="h-9 w-24"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                    }}
                     onBlur={(e) => {
                       const v = Number(e.target.value);
                       if (v !== Number(p.partner.profit_share)) {

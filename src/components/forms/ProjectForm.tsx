@@ -99,7 +99,7 @@ export function ProjectForm({
       ...values,
       partner_id: values.partner_id || null,
       amount,
-      created_by: initial ? undefined : user?.id,
+      created_by: initial?.id ? undefined : user?.id,
     };
     const saved = (await save.mutateAsync({ id: initial?.id, values: payload })) as { id?: string } | null;
     if (again) {

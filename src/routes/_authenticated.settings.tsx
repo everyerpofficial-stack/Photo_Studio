@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -149,6 +150,19 @@ function ThresholdsSection() {
 function UsersSection() {
   const { data: staff = [], isLoading } = useStaff();
   const can = useCan();
+  const saveProfile = useSaveRecord("profiles", "User profile");
+
+  const handleRoleChange = async (userId: string, newRole: Role) => {
+    try {
+      const { error } = await supabase
+        .from("user_roles")
+        .upsert({ user_id: userId, role: newRole } as never, { onConflict: "user_id" });
+      if (error) throw error;
+      toast.success("User role updated.");
+    } catch (e: any) {
+      toast.error(`Failed to update role: ${e.message}`);
+    }
+  };
 
   return (
     <SectionCard title="Users & roles">
@@ -161,20 +175,46 @@ function UsersSection() {
           {
             key: "r",
             header: "Role",
-            cell: (s) => (
-              <StatusChip
-                label={s.role ? roleLabel[s.role as Role] : "Unassigned"}
-                tone={s.role === "partner" ? "primary" : s.role === "accountant" ? "success" : "neutral"}
-              />
-            ),
+            cell: (s) =>
+              can("manageUsers") ? (
+                <Select
+                  value={s.role ?? "partner"}
+                  onValueChange={(v) => void handleRoleChange(s.id, v as Role)}
+                >
+                  <SelectTrigger className="h-8 w-[160px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(roleLabel) as Role[]).map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {roleLabel[r]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <StatusChip
+                  label={s.role ? roleLabel[s.role as Role] : "Unassigned"}
+                  tone={s.role === "partner" ? "primary" : s.role === "accountant" ? "success" : "neutral"}
+                />
+              ),
             sortValue: (s) => s.role ?? "",
           },
           {
             key: "a",
             header: "Status",
-            cell: (s) => (
-              <StatusChip label={s.is_active ? "Active" : "Disabled"} tone={s.is_active ? "success" : "danger"} />
-            ),
+            cell: (s) =>
+              can("manageUsers") ? (
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={s.is_active}
+                    onCheckedChange={(checked) => saveProfile.mutate({ id: s.id, values: { is_active: checked } })}
+                  />
+                  <span className="text-xs">{s.is_active ? "Active" : "Disabled"}</span>
+                </div>
+              ) : (
+                <StatusChip label={s.is_active ? "Active" : "Disabled"} tone={s.is_active ? "success" : "danger"} />
+              ),
             sortValue: (s) => String(s.is_active),
           },
           {

@@ -3,8 +3,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SectionCard, PageHeader, StatusChip } from "@/components/Primitives";
+import { FormDialog } from "@/components/FormDialog";
 import { Field } from "@/components/forms/ProjectForm";
 import {
   useExpenseCategories,
@@ -15,7 +17,7 @@ import {
   usePartners,
   useSaveRecord,
 } from "@/lib/api";
-import { fmtDate, inr } from "@/lib/format";
+import { fmtDate, inr, today } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/masters")({
   head: () => ({
@@ -84,6 +86,106 @@ function NameList({
   );
 }
 
+function RateCardForm({ onDone }: { onDone: () => void }) {
+  const { data: types = [] } = useProjectTypes();
+  const save = useSaveRecord("price_lists", "Rate card");
+  const [projectTypeId, setProjectTypeId] = useState(types[0]?.id ?? "");
+  const [rate, setRate] = useState("");
+  const [effectiveFrom, setEffectiveFrom] = useState(today());
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!projectTypeId || Number(rate) <= 0) {
+          toast.error("Select a project type and enter a rate greater than zero.");
+          return;
+        }
+        save.mutate(
+          {
+            values: {
+              project_type_id: projectTypeId,
+              rate: Number(rate),
+              effective_from: effectiveFrom,
+              is_active: true,
+            },
+          },
+          { onSuccess: onDone },
+        );
+      }}
+    >
+      <Field label="Project type" required>
+        <Select value={projectTypeId} onValueChange={setProjectTypeId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select type" />
+          </SelectTrigger>
+          <SelectContent>
+            {types.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field label="Standard Rate (₹)" required>
+        <Input type="number" min="1" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="5000" />
+      </Field>
+      <Field label="Effective From" required>
+        <Input type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+      </Field>
+      <Button type="submit" className="w-full" disabled={save.isPending}>
+        Save Rate Card
+      </Button>
+    </form>
+  );
+}
+
+function FYForm({ onDone }: { onDone: () => void }) {
+  const save = useSaveRecord("financial_years", "Financial year");
+  const [label, setLabel] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!label || !startDate || !endDate) {
+          toast.error("Label, start date and end date are required.");
+          return;
+        }
+        save.mutate(
+          {
+            values: {
+              label,
+              start_date: startDate,
+              end_date: endDate,
+              is_current: false,
+            },
+          },
+          { onSuccess: onDone },
+        );
+      }}
+    >
+      <Field label="Label" required hint="e.g. FY 2026-27">
+        <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="FY 2026-27" />
+      </Field>
+      <Field label="Start Date" required>
+        <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+      </Field>
+      <Field label="End Date" required>
+        <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+      </Field>
+      <Button type="submit" className="w-full" disabled={save.isPending}>
+        Save Financial Year
+      </Button>
+    </form>
+  );
+}
+
 function MastersPage() {
   const { data: types = [] } = useProjectTypes();
   const { data: categories = [] } = useExpenseCategories();
@@ -110,7 +212,14 @@ function MastersPage() {
         </TabsContent>
 
         <TabsContent value="rates" className="mt-4">
-          <SectionCard title="Rate cards">
+          <SectionCard
+            title="Rate cards"
+            action={
+              <FormDialog title="New rate card" triggerLabel="New rate card">
+                {(close) => <RateCardForm onDone={close} />}
+              </FormDialog>
+            }
+          >
             <ul className="divide-y text-[13px]">
               {prices.length === 0 && <li className="py-3 text-muted-foreground">No rate cards yet.</li>}
               {prices.map((p) => (
@@ -130,7 +239,14 @@ function MastersPage() {
         </TabsContent>
 
         <TabsContent value="fy" className="mt-4">
-          <SectionCard title="Financial years (April–March)">
+          <SectionCard
+            title="Financial years (April–March)"
+            action={
+              <FormDialog title="New financial year" triggerLabel="New financial year">
+                {(close) => <FYForm onDone={close} />}
+              </FormDialog>
+            }
+          >
             <ul className="divide-y text-[13px]">
               {years.length === 0 && <li className="py-3 text-muted-foreground">No financial years defined.</li>}
               {years.map((y) => (
@@ -149,3 +265,4 @@ function MastersPage() {
     </div>
   );
 }
+

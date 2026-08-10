@@ -34,8 +34,13 @@ export function GlobalSearch() {
         setOpen((o) => !o);
       }
     };
+    const openCustom = () => setOpen(true);
     document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
+    window.addEventListener("open-global-search", openCustom);
+    return () => {
+      document.removeEventListener("keydown", down);
+      window.removeEventListener("open-global-search", openCustom);
+    };
   }, []);
 
   const go = (to: string) => {

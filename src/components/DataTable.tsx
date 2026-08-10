@@ -233,7 +233,15 @@ export function DataTable<T>({
               )}
             </tbody>
             {footer && !loading && filtered.length > 0 && (
-              <tfoot className="sticky bottom-0 bg-neutral font-semibold">{footer(filtered)}</tfoot>
+              <tfoot className="sticky bottom-0 bg-muted/90 backdrop-blur-md border-t font-semibold">
+                <tr>
+                  <td colSpan={visible.length} className="px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-4">
+                      {footer(filtered)}
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
             )}
           </table>
         </div>

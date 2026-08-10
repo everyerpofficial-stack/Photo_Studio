@@ -207,8 +207,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {/* Search shortcut */}
           <button
             onClick={() => {
-              const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true });
-              document.dispatchEvent(event);
+              window.dispatchEvent(new CustomEvent("open-global-search"));
             }}
             className="ml-auto hidden items-center gap-2 rounded-lg border bg-muted/50 px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:bg-muted sm:inline-flex"
           >

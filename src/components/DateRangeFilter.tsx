@@ -35,14 +35,22 @@ export function DateRangeFilter({
         <Input
           type="date"
           value={value.from}
-          onChange={(e) => onChange({ ...value, from: e.target.value })}
+          onChange={(e) => {
+            const f = e.target.value;
+            const t = value.to && f > value.to ? f : value.to;
+            onChange({ ...value, from: f, to: t });
+          }}
           className="h-7 w-[125px] text-xs px-1.5 py-0 border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-indigo-500"
         />
         <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">To</span>
         <Input
           type="date"
           value={value.to}
-          onChange={(e) => onChange({ ...value, to: e.target.value })}
+          onChange={(e) => {
+            const t = e.target.value;
+            const f = value.from && t < value.from ? t : value.from;
+            onChange({ ...value, from: f, to: t });
+          }}
           className="h-7 w-[125px] text-xs px-1.5 py-0 border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-indigo-500"
         />
       </div>

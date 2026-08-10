@@ -61,6 +61,7 @@ export function CsvImportDialog() {
       setFile(selected);
       parseFile(selected);
     }
+    e.target.value = "";
   };
 
   const parseFile = (file: File) => {
