@@ -19,15 +19,15 @@ import { logAudit } from "@/lib/audit";
 type ParsedRow = {
   date: string;
   categoryName: string;
-  categoryId?: string;
+  categoryId?: string | undefined;
   expenseClass: "operating" | "capital" | "financing";
   amount: number;
   partnerName: string;
-  partnerId?: string;
+  partnerId?: string | undefined;
   notes: string;
   billNo: string;
   isValid: boolean;
-  error?: string;
+  error?: string | undefined;
 };
 
 export function CsvImportDialog() {
@@ -76,7 +76,12 @@ export function CsvImportDialog() {
       }
 
       // Parse headers
-      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+      const firstLine = lines[0];
+      if (!firstLine) {
+        toast.error("CSV file is empty.");
+        return;
+      }
+      const headers = firstLine.split(",").map((h) => h.trim().toLowerCase());
       const dateIdx = headers.indexOf("date");
       const catIdx = headers.indexOf("category");
       const amtIdx = headers.indexOf("amount");
@@ -92,7 +97,7 @@ export function CsvImportDialog() {
       const parsed: ParsedRow[] = [];
 
       for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
+        const line = lines[i]?.trim();
         if (!line) continue;
 
         // Simple CSV splitter that respects quoted strings
@@ -112,16 +117,16 @@ export function CsvImportDialog() {
         }
         cols.push(cur.trim());
 
-        const rawDate = dateIdx !== -1 ? cols[dateIdx] : "";
+        const rawDate = dateIdx !== -1 ? (cols[dateIdx] ?? "") : "";
         const rawCat = cols[catIdx] ?? "";
         const rawAmt = cols[amtIdx] ?? "";
-        const rawPart = partIdx !== -1 ? cols[partIdx] : "";
-        const rawNotes = notesIdx !== -1 ? cols[notesIdx] : "";
-        const rawBill = billIdx !== -1 ? cols[billIdx] : "";
+        const rawPart = partIdx !== -1 ? (cols[partIdx] ?? "") : "";
+        const rawNotes = notesIdx !== -1 ? (cols[notesIdx] ?? "") : "";
+        const rawBill = billIdx !== -1 ? (cols[billIdx] ?? "") : "";
 
         // Clean amount
         const amount = Number(rawAmt.replace(/[^0-9.]/g, ""));
-        const date = rawDate || new Date().toISOString().split("T")[0];
+        const date = rawDate || new Date().toISOString().slice(0, 10);
 
         // Find Category
         const category = categories.find(
@@ -183,7 +188,7 @@ export function CsvImportDialog() {
 
       const inserts = validRows.map((r) => ({
         expense_date: r.date,
-        category_id: r.categoryId,
+        category_id: r.categoryId!,
         expense_class: r.expenseClass,
         amount: r.amount,
         partner_id: r.partnerId || null,
