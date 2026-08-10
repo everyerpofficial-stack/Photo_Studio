@@ -210,10 +210,10 @@ function PaymentsPage() {
         searchFields={(p) => [p.clients?.name, p.reference_no, p.notes, p.payment_modes?.name].filter(Boolean).join(" ")}
         emptyMessage="No payments in this period."
         filters={
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <DateRangeFilter value={filters} onChange={setFilters} />
             <Select value={filters.clientId ?? "all"} onValueChange={(v) => setFilters({ ...filters, clientId: v === "all" ? undefined : v })}>
-              <SelectTrigger className="h-9 w-[160px]">
+              <SelectTrigger className="h-8 text-xs w-[150px]">
                 <SelectValue placeholder="Client" />
               </SelectTrigger>
               <SelectContent>
@@ -226,7 +226,7 @@ function PaymentsPage() {
               </SelectContent>
             </Select>
             <Select value={filters.modeId ?? "all"} onValueChange={(v) => setFilters({ ...filters, modeId: v === "all" ? undefined : v })}>
-              <SelectTrigger className="h-9 w-[140px]">
+              <SelectTrigger className="h-8 text-xs w-[130px]">
                 <SelectValue placeholder="Mode" />
               </SelectTrigger>
               <SelectContent>
@@ -239,7 +239,7 @@ function PaymentsPage() {
               </SelectContent>
             </Select>
             <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="h-9 w-[150px]">
+              <SelectTrigger className="h-8 text-xs w-[130px]">
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>

@@ -163,10 +163,10 @@ function ExpensesPage() {
         searchFields={(e) => [e.expense_categories?.name, e.bill_no, e.notes, e.partners?.name, e.clients?.name].filter(Boolean).join(" ")}
         emptyMessage="No expenses in this period."
         filters={
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <DateRangeFilter value={filters} onChange={setFilters} />
             <Select value={filters.partnerId ?? "all"} onValueChange={(v) => setFilters({ ...filters, partnerId: v === "all" ? undefined : v })}>
-              <SelectTrigger className="h-9 w-[150px]">
+              <SelectTrigger className="h-8 text-xs w-[140px]">
                 <SelectValue placeholder="Paid by" />
               </SelectTrigger>
               <SelectContent>
@@ -179,7 +179,7 @@ function ExpensesPage() {
               </SelectContent>
             </Select>
             <Select value={cls} onValueChange={setCls}>
-              <SelectTrigger className="h-9 w-[150px]">
+              <SelectTrigger className="h-8 text-xs w-[140px]">
                 <SelectValue placeholder="Class" />
               </SelectTrigger>
               <SelectContent>

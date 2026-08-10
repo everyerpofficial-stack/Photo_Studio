@@ -95,66 +95,72 @@ export function DataTable<T>({
   }));
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
-            }}
-            placeholder={searchPlaceholder}
-            className="pl-9"
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {filters}
-          {toolbar}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" aria-label="Column visibility">
-                <Settings2 className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Columns</DropdownMenuLabel>
-              {columns.map((c) => (
-                <DropdownMenuCheckboxItem
-                  key={c.key}
-                  checked={!hidden.includes(c.key)}
-                  onCheckedChange={(v) =>
-                    setHidden((h) => (v ? h.filter((k) => k !== c.key) : [...h, c.key]))
-                  }
-                >
-                  {c.header}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {exportName && (
+    <div className="space-y-2.5">
+      <div className="flex flex-col gap-2 rounded-lg border border-border/70 bg-card p-2 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
+              placeholder={searchPlaceholder}
+              className="h-8 pl-8 text-xs bg-background"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {toolbar}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Download className="size-4" /> Export
+                <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs gap-1.5" aria-label="Column visibility">
+                  <Settings2 className="size-3.5" /> Columns
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => exportExcel(filtered, exportCols, exportName)}>
-                  Excel (.xls)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => exportCSV(filtered, exportCols, exportName)}>CSV</DropdownMenuItem>
+                <DropdownMenuLabel>Columns</DropdownMenuLabel>
+                {columns.map((c) => (
+                  <DropdownMenuCheckboxItem
+                    key={c.key}
+                    checked={!hidden.includes(c.key)}
+                    onCheckedChange={(v) =>
+                      setHidden((h) => (v ? h.filter((k) => k !== c.key) : [...h, c.key]))
+                    }
+                  >
+                    {c.header}
+                  </DropdownMenuCheckboxItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
+            {exportName && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs gap-1.5">
+                    <Download className="size-3.5" /> Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => exportExcel(filtered, exportCols, exportName)}>
+                    Excel (.xls)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportCSV(filtered, exportCols, exportName)}>CSV</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
+        {filters && (
+          <div className="flex flex-wrap items-center gap-2 pt-1.5 border-t border-border/50">
+            {filters}
+          </div>
+        )}
       </div>
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-card">
+      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-card">
         <div className="max-h-[70vh] overflow-auto">
-          <table className="w-full min-w-[720px] border-collapse text-[12px]">
-            <thead className="sticky top-0 z-10 bg-primary-light">
+          <table className="w-full min-w-[720px] border-collapse text-[12.5px]">
+            <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-md border-b border-border">
               <tr>
                 {visible.map((c) => (
                   <th
@@ -166,7 +172,7 @@ export function DataTable<T>({
                       )
                     }
                     className={cn(
-                      "whitespace-nowrap px-3 py-2.5 font-semibold text-primary",
+                      "whitespace-nowrap px-3 py-2 font-semibold text-foreground/90 uppercase tracking-wider text-[11px]",
                       c.align === "right" ? "text-right" : "text-left",
                       c.sortValue && "cursor-pointer select-none hover:opacity-80",
                     )}

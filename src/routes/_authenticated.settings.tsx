@@ -40,7 +40,7 @@ function CompanyProfileSection() {
   const company = (settings["company"] ?? {}) as Record<string, string>;
   const [name, setName] = useState(company["name"] ?? "LEONIS");
   const [tagline, setTagline] = useState(company["tagline"] ?? "Photography & Content Production");
-  const [city, setCity] = useState(company["city"] ?? "Surat");
+  const [city, setCity] = useState(company["city"] ?? "");
   const [gstin, setGstin] = useState(company["gstin"] ?? "");
   const [phone, setPhone] = useState(company["phone"] ?? "");
   const [email, setEmail] = useState(company["email"] ?? "");

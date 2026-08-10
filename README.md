@@ -1,6 +1,6 @@
 # LEONIS Studio Hub
 
-Build a complete production-ready full-stack web application called "LEONIS" for a photography/content production studio in Surat.
+Build a complete production-ready full-stack web application called "LEONIS" for a photography/content production studio.
 
 IMPORTANT:
 

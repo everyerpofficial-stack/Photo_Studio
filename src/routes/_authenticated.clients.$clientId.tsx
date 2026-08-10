@@ -133,7 +133,7 @@ function ClientDetail() {
                   href={`mailto:${client.email}?subject=${encodeURIComponent(
                     `Payment Reminder — LEONIS Studio`
                   )}&body=${encodeURIComponent(
-                    `Dear ${client.name},\n\nThis is a friendly reminder regarding your outstanding balance of ${inr(stat.due)} with LEONIS Studio.\n\nBilled: ${inr(stat.billed)}\nReceived: ${inr(stat.received)}\nDue: ${inr(stat.due)}\n\nPlease let us know if you need any clarification.\n\nBest regards,\nLEONIS Studio, Surat`
+                    `Dear ${client.name},\n\nThis is a friendly reminder regarding your outstanding balance of ${inr(stat.due)} with LEONIS Studio.\n\nBilled: ${inr(stat.billed)}\nReceived: ${inr(stat.received)}\nDue: ${inr(stat.due)}\n\nPlease let us know if you need any clarification.\n\nBest regards,\nLEONIS Studio`
                   )}`}
                 >
                   <Mail className="size-4" /> Email

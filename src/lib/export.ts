@@ -67,10 +67,10 @@ export function printDocument(title: string, innerHtml: string) {
     .kv b{display:block;font-size:15px;color:#1F3864}
     .foot{margin-top:36px;color:#808080;font-size:11px;border-top:1px solid #eee;padding-top:10px}
   </style></head><body>
-  <div class="head"><div><h1>LEONIS</h1><div class="sub">Photography &amp; Content Production · Surat</div></div>
+  <div class="head"><div><h1>LEONIS</h1><div class="sub">Photography &amp; Content Production</div></div>
   <div style="text-align:right"><div style="font-weight:600">${title}</div><div class="sub">${fmtDate(new Date())}</div></div></div>
   ${innerHtml}
-  <div class="foot">Computer generated document · LEONIS Studio, Surat · studio@leonis.in</div>
+  <div class="foot">Computer generated document · LEONIS Studio · studio@leonis.in</div>
   </body></html>`);
   win.document.close();
   win.focus();

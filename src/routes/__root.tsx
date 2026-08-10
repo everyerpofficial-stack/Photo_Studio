@@ -79,13 +79,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "LEONIS — Studio Business Suite" },
+      { title: "LEONIS — Studio ERP" },
       {
         name: "description",
         content:
-          "LEONIS runs a Surat photography & content studio: shoots, clients, payments, expenses, partner capital and reports in one place.",
+          "LEONIS Studio ERP: shoots, clients, payments, expenses, partner capital and financial reporting in one place.",
       },
-      { property: "og:title", content: "LEONIS — Studio Business Suite" },
+      { property: "og:title", content: "LEONIS — Studio ERP" },
       {
         property: "og:description",
         content: "Shoots, clients, payments, expenses and partner accounts for a modern production studio.",
@@ -98,7 +98,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
     ],
   }),
   shellComponent: RootShell,
