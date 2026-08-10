@@ -12,6 +12,7 @@ import {
   usePaymentModes,
   usePriceLists,
   useProjectTypes,
+  usePartners,
   useSaveRecord,
 } from "@/lib/api";
 import { fmtDate, inr } from "@/lib/format";
@@ -87,6 +88,7 @@ function MastersPage() {
   const { data: types = [] } = useProjectTypes();
   const { data: categories = [] } = useExpenseCategories();
   const { data: modes = [] } = usePaymentModes();
+  const { data: partners = [] } = usePartners();
   const { data: prices = [] } = usePriceLists();
   const { data: years = [] } = useFinancialYears();
 
@@ -100,10 +102,11 @@ function MastersPage() {
           <TabsTrigger value="fy">Financial years</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="lists" className="mt-4 grid gap-4 lg:grid-cols-3">
+        <TabsContent value="lists" className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <NameList table="project_types" module="Project types" rows={types} />
           <NameList table="expense_categories" module="Expense categories" rows={categories} />
           <NameList table="payment_modes" module="Payment modes" rows={modes} />
+          <NameList table="partners" module="Partners" rows={partners} />
         </TabsContent>
 
         <TabsContent value="rates" className="mt-4">

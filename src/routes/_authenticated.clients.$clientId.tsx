@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Download, Mail, MessageSquare, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable, type Column } from "@/components/DataTable";
@@ -102,10 +102,44 @@ function ClientDetail() {
         title={client.name}
         description={[client.company, client.phone, client.email].filter(Boolean).join(" · ") || "No contact details"}
         actions={
-          <>
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" className="gap-2" onClick={printStatement}>
               <Printer className="size-4" /> Print statement
             </Button>
+            {client.phone && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                asChild
+              >
+                <a
+                  href={`https://wa.me/${client.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                    `Hi ${client.name}, this is a gentle reminder from LEONIS Studio regarding your outstanding balance of ${inr(stat.due)}. Please let us know if you have any questions. Thank you!`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessageSquare className="size-4" /> WhatsApp
+                </a>
+              </Button>
+            )}
+            {client.email && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                asChild
+              >
+                <a
+                  href={`mailto:${client.email}?subject=${encodeURIComponent(
+                    `Payment Reminder — LEONIS Studio`
+                  )}&body=${encodeURIComponent(
+                    `Dear ${client.name},\n\nThis is a friendly reminder regarding your outstanding balance of ${inr(stat.due)} with LEONIS Studio.\n\nBilled: ${inr(stat.billed)}\nReceived: ${inr(stat.received)}\nDue: ${inr(stat.due)}\n\nPlease let us know if you need any clarification.\n\nBest regards,\nLEONIS Studio, Surat`
+                  )}`}
+                >
+                  <Mail className="size-4" /> Email
+                </a>
+              </Button>
+            )}
             {can("viewFinance") && (
               <FormDialog title="Record payment" triggerLabel="Record payment">
                 {(close) => <PaymentForm onDone={close} />}
@@ -116,7 +150,7 @@ function ClientDetail() {
                 {(close) => <ClientForm initial={client} onDone={close} />}
               </FormDialog>
             )}
-          </>
+          </div>
         }
       />
 

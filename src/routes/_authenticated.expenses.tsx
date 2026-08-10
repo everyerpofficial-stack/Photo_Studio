@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { DataTable, type Column } from "@/components/DataTable";
 import { FormDialog } from "@/components/FormDialog";
+import { CsvImportDialog } from "@/components/CsvImportDialog";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { KpiCard, PageHeader, StatusChip } from "@/components/Primitives";
 import { ExpenseForm } from "@/components/forms/ExpenseForm";
@@ -135,9 +136,12 @@ function ExpensesPage() {
         description="Every rupee out, classified for clean P&L and balance reporting."
         actions={
           can("editProjects") ? (
-            <FormDialog title="New expense" triggerLabel="New expense">
-              {(close) => <ExpenseForm onDone={close} />}
-            </FormDialog>
+            <div className="flex items-center gap-2">
+              <CsvImportDialog />
+              <FormDialog title="New expense" triggerLabel="New expense">
+                {(close) => <ExpenseForm onDone={close} />}
+              </FormDialog>
+            </div>
           ) : undefined
         }
       />

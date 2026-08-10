@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Pencil, Trash2 } from "lucide-react";
+import { Check, Pencil, Printer, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -32,6 +32,7 @@ import {
   type Payment,
 } from "@/lib/api";
 import { fmtDate, inr } from "@/lib/format";
+import { printDocument } from "@/lib/export";
 import { useCan } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/payments")({
@@ -114,6 +115,33 @@ function PaymentsPage() {
               <Check className="size-4 text-success-foreground" />
             </Button>
           )}
+          {/* Print receipt */}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Print receipt"
+            onClick={() => {
+              const clientName = p.clients?.name ?? "Client";
+              const mode = p.payment_modes?.name ?? "—";
+              printDocument(
+                `Receipt — ${clientName}`,
+                `<h2>Payment Receipt</h2>
+                 <div class="kv">
+                   <div>Date<b>${fmtDate(p.payment_date)}</b></div>
+                   <div>Amount<b>${inr(p.amount)}</b></div>
+                   <div>Mode<b>${mode}</b></div>
+                   <div>Reference<b>${p.reference_no ?? "—"}</b></div>
+                 </div>
+                 <table><tbody>
+                 <tr><td>Client</td><td class="r"><strong>${clientName}</strong></td></tr>
+                 <tr><td>Payment type</td><td class="r">${p.payment_type === "client_payment" ? "Client payment" : "Other income"}</td></tr>
+                 ${p.notes ? `<tr><td>Notes</td><td class="r">${p.notes}</td></tr>` : ""}
+                 </tbody></table>`,
+              );
+            }}
+          >
+            <Printer className="size-4" />
+          </Button>
           {can("editProjects") && (
             <FormDialog
               title="Edit payment"

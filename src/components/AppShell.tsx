@@ -8,9 +8,11 @@ import {
   CalendarRange,
   FileBarChart2,
   LayoutDashboard,
+  Lightbulb,
   LogOut,
   Menu,
   Receipt,
+  Search,
   Settings,
   ShieldCheck,
   Users2,
@@ -18,9 +20,19 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { roleLabel, useAuth, useCan, type Permission } from "@/lib/auth";
-import { useAlerts } from "@/lib/api";
+import { useAlerts, useNotifications, useSaveRecord } from "@/lib/api";
+import { fmtDateTime } from "@/lib/format";
+import { GlobalSearch } from "@/components/GlobalSearch";
+import { QuickAdd } from "@/components/QuickAdd";
 
 type NavItem = { to: string; label: string; icon: ReactNode; perm?: Permission };
 
@@ -32,19 +44,87 @@ const NAV: NavItem[] = [
   { to: "/expenses", label: "Expenses", icon: <Receipt className="size-4" />, perm: "viewFinance" },
   { to: "/partners", label: "Partners", icon: <Wallet className="size-4" />, perm: "viewPartnerFinance" },
   { to: "/reports", label: "Reports", icon: <FileBarChart2 className="size-4" />, perm: "viewFinance" },
+  { to: "/insights", label: "Insights & Alerts", icon: <Lightbulb className="size-4" /> },
   { to: "/masters", label: "Masters", icon: <Settings className="size-4" />, perm: "manageMasters" },
   { to: "/admin", label: "Admin & Audit", icon: <ShieldCheck className="size-4" />, perm: "viewAudit" },
+  { to: "/settings", label: "Settings", icon: <Settings className="size-4" />, perm: "manageUsers" },
 ];
+
+function NotificationBell() {
+  const { data: notifications = [] } = useNotifications();
+  const { data: alerts = [] } = useAlerts();
+  const save = useSaveRecord("notifications", "Notification");
+  const unreadNotifs = notifications.filter((n) => !n.is_read);
+  const openAlerts = alerts.filter((a) => a.status === "open");
+  const totalBadge = unreadNotifs.length + openAlerts.length;
+
+  const markRead = (id: string) => {
+    save.mutate({ id, values: { is_read: true } });
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="relative rounded-md p-2 hover:bg-muted" aria-label="Notifications">
+          <Bell className="size-4" />
+          {totalBadge > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-danger text-[9px] font-bold text-danger-foreground">
+              {totalBadge > 9 ? "9+" : totalBadge}
+            </span>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 max-h-[400px] overflow-y-auto">
+        <DropdownMenuLabel className="flex items-center justify-between">
+          <span>Notifications</span>
+          {unreadNotifs.length > 0 && (
+            <span className="text-[10px] font-normal text-muted-foreground">{unreadNotifs.length} unread</span>
+          )}
+        </DropdownMenuLabel>
+
+        {openAlerts.slice(0, 5).map((a) => (
+          <DropdownMenuItem key={`alert-${a.id}`} asChild>
+            <Link to="/insights" className="flex flex-col items-start gap-0.5 py-2">
+              <span className="text-[12px] font-medium">{a.title}</span>
+              {a.description && <span className="text-[11px] text-muted-foreground line-clamp-1">{a.description}</span>}
+            </Link>
+          </DropdownMenuItem>
+        ))}
+
+        {unreadNotifs.slice(0, 10).map((n) => (
+          <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-0.5 py-2" onClick={() => markRead(n.id)}>
+            <span className="text-[12px] font-medium">{n.title}</span>
+            {n.body && <span className="text-[11px] text-muted-foreground line-clamp-1">{n.body}</span>}
+            <span className="text-[10px] text-muted-foreground">{fmtDateTime(n.created_at)}</span>
+          </DropdownMenuItem>
+        ))}
+
+        {totalBadge === 0 && (
+          <div className="px-3 py-6 text-center text-[12px] text-muted-foreground">
+            No new notifications
+          </div>
+        )}
+
+        {totalBadge > 0 && (
+          <DropdownMenuItem asChild>
+            <Link to="/insights" className="justify-center text-[11px] font-medium text-primary">
+              View all alerts →
+            </Link>
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { profile, role, signOut } = useAuth();
   const can = useCan();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { data: alerts = [] } = useAlerts();
-  const openAlerts = alerts.filter((a) => a.status === "open").length;
 
   const items = NAV.filter((n) => !n.perm || can(n.perm));
 
@@ -123,15 +203,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Menu className="size-5" />
           </Button>
           <p className="text-sm font-semibold tracking-[0.18em] lg:hidden">LEONIS</p>
-          <div className="ml-auto flex items-center gap-2">
-            <Link to="/admin" className="relative rounded-md p-2 hover:bg-muted" aria-label="Alerts">
-              <Bell className="size-4" />
-              {openAlerts > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-danger text-[9px] font-bold text-danger-foreground">
-                  {openAlerts}
-                </span>
-              )}
-            </Link>
+
+          {/* Search shortcut */}
+          <button
+            onClick={() => {
+              const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true });
+              document.dispatchEvent(event);
+            }}
+            className="ml-auto hidden items-center gap-2 rounded-lg border bg-muted/50 px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:bg-muted sm:inline-flex"
+          >
+            <Search className="size-3.5" />
+            Search…
+            <kbd className="rounded bg-background px-1.5 py-0.5 text-[10px] font-mono font-medium border">Ctrl+K</kbd>
+          </button>
+
+          <div className={cn("flex items-center gap-2", "sm:ml-0 ml-auto")}>
+            <NotificationBell />
             <span className="hidden items-center gap-2 rounded-full bg-primary-light px-3 py-1 text-[11px] font-medium text-primary sm:inline-flex">
               <Users2 className="size-3" /> {role ? roleLabel[role] : "Guest"}
             </span>
@@ -139,6 +226,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <main className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6">{children}</main>
       </div>
+
+      <GlobalSearch />
+      <QuickAdd />
     </div>
   );
 }
+

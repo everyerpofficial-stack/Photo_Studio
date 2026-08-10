@@ -17,24 +17,34 @@ export function FormDialog({
   children,
   triggerLabel,
   wide,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: {
   title: string;
   description?: string;
   trigger?: ReactNode;
   triggerLabel?: string;
   wide?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: (close: () => void) => ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? (controlledOnOpenChange ?? (() => {})) : setInternalOpen;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button className="gap-2">
-            <Plus className="size-4" /> {triggerLabel ?? title}
-          </Button>
-        )}
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button className="gap-2">
+              <Plus className="size-4" /> {triggerLabel ?? title}
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className={wide ? "max-h-[90vh] overflow-y-auto sm:max-w-3xl" : "max-h-[90vh] overflow-y-auto sm:max-w-xl"}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>

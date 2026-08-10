@@ -3,6 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   Cell,
   Legend,
@@ -13,24 +15,31 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AlertTriangle, BadgeIndianRupee, Receipt, TrendingUp, Wallet } from "lucide-react";
+import { AlertTriangle, BadgeIndianRupee, Receipt, TrendingDown, TrendingUp, Users2, Wallet } from "lucide-react";
 import { EmptyState, KpiCard, PageHeader, SectionCard, StatusChip, statusTone } from "@/components/Primitives";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import {
   computeClientStats,
+  computePartnerPositions,
   defaultFilters,
   filterExpenses,
   filterPayments,
   filterProjects,
   operatingPL,
+  projectExpense,
+  projectProfit,
+  sum,
   useAlerts,
   useClients,
   useExpenses,
+  usePartnerCapital,
+  usePartnerDrawings,
+  usePartners,
   usePayments,
   useProjects,
   type Filters,
 } from "@/lib/api";
-import { fmtDate, inr, monthKey, monthLabel, pct } from "@/lib/format";
+import { fmtDate, inr, margin, monthKey, monthLabel, pct } from "@/lib/format";
 import { useCan } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -46,7 +55,8 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-const PIE_COLORS = ["#1F3864", "#3B5CA8", "#7C93C8", "#B9C6E2"];
+const PIE_COLORS = ["#1F3864", "#3B5CA8", "#7C93C8", "#B9C6E2", "#6366f1", "#10b981"];
+const BAR_COLORS = ["#2F855A", "#C05621"];
 
 function Dashboard() {
   const [filters, setFilters] = useState<Filters>(defaultFilters);
@@ -56,6 +66,9 @@ function Dashboard() {
   const { data: expenses = [] } = useExpenses();
   const { data: clients = [] } = useClients();
   const { data: alerts = [] } = useAlerts();
+  const { data: partners = [] } = usePartners();
+  const { data: capital = [] } = usePartnerCapital();
+  const { data: drawings = [] } = usePartnerDrawings();
 
   const fp = useMemo(() => filterProjects(projects, filters), [projects, filters]);
   const fpay = useMemo(() => filterPayments(payments, filters), [payments, filters]);
@@ -63,6 +76,11 @@ function Dashboard() {
   const pl = useMemo(() => operatingPL(fp, fpay, fex), [fp, fpay, fex]);
   const stats = useMemo(() => computeClientStats(clients, projects, payments, expenses), [clients, projects, payments, expenses]);
   const outstanding = stats.reduce((t, s) => t + Math.max(0, s.due), 0);
+
+  const positions = useMemo(
+    () => computePartnerPositions(partners, filterExpenses(expenses, filters), capital, drawings, pl.netProfit),
+    [partners, expenses, filters, capital, drawings, pl.netProfit],
+  );
 
   const trend = useMemo(() => {
     const keys = new Set<string>();
@@ -97,6 +115,30 @@ function Dashboard() {
 
   const topDues = useMemo(() => stats.filter((s) => s.due > 0).sort((a, b) => b.due - a.due).slice(0, 6), [stats]);
   const openAlerts = alerts.filter((a) => a.status === "open").slice(0, 5);
+
+  // Recent payments & expenses
+  const recentPay = useMemo(() => [...fpay].sort((a, b) => b.payment_date.localeCompare(a.payment_date)).slice(0, 5), [fpay]);
+  const recentExp = useMemo(() => [...fex].sort((a, b) => b.expense_date.localeCompare(a.expense_date)).slice(0, 5), [fex]);
+
+  // Expense by category
+  const byCategory = useMemo(() => {
+    const map = new Map<string, number>();
+    fex.forEach((e) => {
+      const k = e.expense_categories?.name ?? "Other";
+      map.set(k, (map.get(k) ?? 0) + Number(e.amount));
+    });
+    return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [fex]);
+
+  // Low margin projects
+  const lowMargin = useMemo(
+    () => fp.filter((p) => {
+      const prof = projectProfit(p);
+      const m = Number(p.amount) > 0 ? margin(prof, Number(p.amount)) : 100;
+      return m < 20 && Number(p.amount) > 0;
+    }).slice(0, 5),
+    [fp],
+  );
 
   return (
     <div>
@@ -139,6 +181,22 @@ function Dashboard() {
           <KpiCard label="Net operating profit" value={inr(pl.netProfit)} hint={`Margin ${pct(pl.marginPct)}`} tone="success" />
           <KpiCard label="Collection rate" value={pct(pl.revenue > 0 ? (pl.received / pl.revenue) * 100 : 0)} hint="Received ÷ billed" />
           <KpiCard label="Active clients" value={String(clients.filter((c) => c.is_active).length)} hint={`${clients.length} on record`} to="/clients" />
+        </div>
+      )}
+
+      {can("viewPartnerFinance") && positions.length > 0 && (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {positions.map((p) => (
+            <KpiCard
+              key={p.partner.id}
+              label={`${p.partner.name} — profit share`}
+              value={inr(p.profitShare)}
+              hint={`Capital ₹${(p.capital / 1000).toFixed(0)}K · Recovery ${pct(p.recoveryPct)}`}
+              tone={p.netPosition >= 0 ? "success" : "warning"}
+              icon={<Users2 className="size-4" />}
+              to="/partners"
+            />
+          ))}
         </div>
       )}
 
@@ -276,6 +334,122 @@ function Dashboard() {
           )}
         </SectionCard>
       </div>
+
+      {/* Row 4: Recent payments, recent expenses, expense breakdown */}
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <SectionCard
+          title="Recent payments"
+          action={
+            <Link to="/payments" className="text-[11px] font-medium text-primary hover:underline">
+              View all
+            </Link>
+          }
+        >
+          {recentPay.length === 0 ? (
+            <EmptyState message="No payments this period." />
+          ) : (
+            <ul className="divide-y">
+              {recentPay.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-medium">{p.clients?.name ?? "Other income"}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {fmtDate(p.payment_date)} · {p.payment_modes?.name ?? "—"}
+                    </p>
+                  </div>
+                  <p className="text-[13px] font-semibold tabular-nums text-success-foreground">{inr(p.amount)}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Recent expenses"
+          action={
+            <Link to="/expenses" className="text-[11px] font-medium text-primary hover:underline">
+              View all
+            </Link>
+          }
+        >
+          {recentExp.length === 0 ? (
+            <EmptyState message="No expenses this period." />
+          ) : (
+            <ul className="divide-y">
+              {recentExp.map((e) => (
+                <li key={e.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-medium">{e.expense_categories?.name ?? "—"}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {fmtDate(e.expense_date)} · {e.partners?.name ?? "—"}
+                    </p>
+                  </div>
+                  <p className="text-[13px] font-semibold tabular-nums text-warning-foreground">{inr(e.amount)}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Expenses by category">
+          {byCategory.length === 0 ? (
+            <EmptyState message="No expenses yet." />
+          ) : (
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={byCategory} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2}>
+                    {byCategory.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v) => inr(Number(v))} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </SectionCard>
+      </div>
+
+      {/* Row 5: Low margin warning */}
+      {can("viewFinance") && lowMargin.length > 0 && (
+        <div className="mt-4">
+          <SectionCard
+            title="Low margin projects"
+            action={
+              <Link to="/insights" className="text-[11px] font-medium text-primary hover:underline">
+                View insights
+              </Link>
+            }
+          >
+            <ul className="divide-y">
+              {lowMargin.map((p) => {
+                const prof = projectProfit(p);
+                const m = margin(prof, Number(p.amount));
+                return (
+                  <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-medium">
+                        {p.clients?.name ?? "—"} — {p.project_types?.name ?? "Shoot"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Revenue {inr(p.amount)} · Cost {inr(projectExpense(p))}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-[13px] font-semibold tabular-nums ${prof < 0 ? "text-danger-foreground" : "text-warning-foreground"}`}>
+                        {inr(prof)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">{pct(m)} margin</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </SectionCard>
+        </div>
+      )}
     </div>
   );
 }

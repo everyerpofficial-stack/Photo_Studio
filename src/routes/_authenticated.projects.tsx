@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -19,6 +19,7 @@ import { FormDialog } from "@/components/FormDialog";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { PageHeader, StatusChip, statusTone } from "@/components/Primitives";
 import { ProjectForm } from "@/components/forms/ProjectForm";
+import { ProjectDetailDialog } from "@/components/ProjectDetailDialog";
 import {
   defaultFilters,
   filterProjects,
@@ -26,6 +27,7 @@ import {
   projectProfit,
   useClients,
   useDeleteRecord,
+  usePartners,
   useProjectTypes,
   useProjects,
   sum,
@@ -55,6 +57,7 @@ function ProjectsPage() {
   const { data: projects = [], isLoading } = useProjects();
   const { data: clients = [] } = useClients();
   const { data: types = [] } = useProjectTypes();
+  const { data: partners = [] } = usePartners();
   const del = useDeleteRecord("projects", "Project");
   const can = useCan();
 
@@ -113,6 +116,20 @@ function ProjectsPage() {
       header: "",
       cell: (p) => (
         <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <ProjectDetailDialog project={p} />
+          {can("editProjects") && (
+            <FormDialog
+              title="Duplicate shoot"
+              wide
+              trigger={
+                <Button variant="ghost" size="icon" aria-label="Duplicate shoot">
+                  <Copy className="size-4" />
+                </Button>
+              }
+            >
+              {(close) => <ProjectForm initial={duplicate(p) as Project} onDone={close} />}
+            </FormDialog>
+          )}
           {can("editProjects") && (
             <FormDialog
               title="Edit shoot"
@@ -151,6 +168,15 @@ function ProjectsPage() {
       ),
     },
   ];
+
+  // Build a duplicate from an existing project
+  const duplicate = (p: Project): Partial<Project> => ({
+    ...p,
+    id: undefined as unknown as string,
+    created_at: undefined as unknown as string,
+    status: "planned",
+    notes: `Duplicated from ${p.clients?.name ?? ""} · ${fmtDate(p.shoot_date)}`,
+  });
 
   return (
     <div>
@@ -218,6 +244,22 @@ function ProjectsPage() {
                 {["all", "planned", "active", "completed", "cancelled"].map((s) => (
                   <SelectItem key={s} value={s}>
                     {s === "all" ? "All statuses" : s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={filters.partnerId ?? "all"}
+              onValueChange={(v) => setFilters({ ...filters, partnerId: v === "all" ? undefined : v })}
+            >
+              <SelectTrigger className="h-9 w-[150px]">
+                <SelectValue placeholder="Partner" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All partners</SelectItem>
+                {partners.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
                   </SelectItem>
                 ))}
               </SelectContent>
