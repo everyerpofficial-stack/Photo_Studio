@@ -137,23 +137,23 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const sidebar = (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-sidebar-border/60">
-        <span className="grid size-9 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-700 text-white text-sm font-bold tracking-wider shadow-sm">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-sidebar-border">
+        <span className="grid size-9 place-items-center rounded-lg bg-gradient-to-br from-indigo-600 to-indigo-700 text-white text-sm font-bold tracking-wider shadow-sm">
           L
         </span>
         <div>
-          <p className="text-sm font-semibold tracking-[0.2em] text-white">LEONIS</p>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-sidebar-foreground/60">Studio ERP</p>
+          <p className="text-sm font-semibold tracking-[0.2em] text-foreground">LEONIS</p>
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Studio ERP</p>
         </div>
         <button
-          className="ml-auto lg:hidden text-sidebar-foreground/70 hover:text-white"
+          className="ml-auto lg:hidden text-muted-foreground hover:text-foreground"
           onClick={() => setOpen(false)}
           aria-label="Close navigation"
         >
           <X className="size-5" />
         </button>
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
         {items.map((n) => {
           const active = pathname === n.to || pathname.startsWith(`${n.to}/`);
           return (
@@ -164,8 +164,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-all duration-150",
                 active
-                  ? "bg-indigo-600 text-white shadow-sm font-semibold"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  ? "bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               {n.icon}
@@ -174,12 +174,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
-      <div className="border-t border-sidebar-border/60 px-4 py-3.5 bg-sidebar-accent/30">
-        <p className="truncate text-[13px] font-semibold text-white">{profile?.full_name ?? "—"}</p>
-        <p className="text-[11px] text-sidebar-foreground/60">{role ? roleLabel[role] : "No role assigned"}</p>
+      <div className="border-t border-sidebar-border px-4 py-3.5">
+        <p className="truncate text-[13px] font-semibold text-foreground">{profile?.full_name ?? "—"}</p>
+        <p className="text-[11px] text-muted-foreground">{role ? roleLabel[role] : "No role assigned"}</p>
         <button
           onClick={handleSignOut}
-          className="mt-2.5 inline-flex items-center gap-2 text-[12px] text-sidebar-foreground/70 hover:text-white transition-colors"
+          className="mt-2.5 inline-flex items-center gap-2 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
         >
           <LogOut className="size-3.5" /> Sign out
         </button>
