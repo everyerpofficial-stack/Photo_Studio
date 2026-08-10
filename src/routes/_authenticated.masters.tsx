@@ -54,7 +54,10 @@ function NameList({
             toast.error("Enter a name.");
             return;
           }
-          save.mutate({ values: { name: name.trim() } }, { onSuccess: () => setName("") });
+          const values: Record<string, unknown> = { name: name.trim(), is_active: true };
+          if (table === "expense_categories") values.default_class = "operating";
+          if (table === "partners") values.profit_share = 0;
+          save.mutate({ values }, { onSuccess: () => setName("") });
         }}
       >
         <Field label={`Add ${module.toLowerCase()}`}>

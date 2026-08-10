@@ -81,7 +81,9 @@ export type Expense = {
 export type Partner = { id: string; name: string; profit_share: number; is_active: boolean };
 
 const err = (e: unknown) => {
-  const message = e instanceof Error ? e.message : "Something went wrong. Please try again.";
+  const message =
+    (e as { message?: string })?.message ||
+    (e instanceof Error ? e.message : "Something went wrong. Please try again.");
   toast.error(message);
   throw e;
 };
@@ -93,8 +95,8 @@ async function fetchAll<T>(table: string, select: string, order: { col: string; 
     .is("deleted_at", null)
     .order(order.col, { ascending: order.asc ?? false });
   if (error) {
-    // tables without deleted_at
-    if (error.code === "42703") {
+    // tables without deleted_at column (e.g. Postgres 42703 or PostgREST PGRST204)
+    if (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("deleted_at")) {
       const res = await supabase
         .from(table as never)
         .select(select)
