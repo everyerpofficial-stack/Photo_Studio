@@ -224,9 +224,7 @@ function recordAudit(
 
 /* ------------------------------------------------------------ generic CRUD */
 
-export const saveRecord = createServerFn({ method: "POST", strict: false })
-  .validator((d: { table: string; id?: string | undefined; values: Row; module: string }) => d)
-  .handler(async ({ data }) => {
+export const saveRecord = async ({ data }: { data: { table: string; id?: string | undefined; values: Row; module: string } }) => {
     const { table, id, values, module } = data;
     const store = loadStore();
     const now = nowIso();
@@ -280,11 +278,9 @@ export const saveRecord = createServerFn({ method: "POST", strict: false })
     saveStore(store);
     recordAudit("created", module, newId, null, newRow);
     return mapRow(newRow);
-  });
+  };
 
-export const deleteRecord = createServerFn({ method: "POST", strict: false })
-  .validator((d: { table: string; id: string; module: string; soft?: boolean | undefined }) => d)
-  .handler(async ({ data }) => {
+export const deleteRecord = async ({ data }: { data: { table: string; id: string; module: string; soft?: boolean | undefined } }) => {
     const { table, id, module, soft = true } = data;
     const store = loadStore();
 
@@ -307,19 +303,9 @@ export const deleteRecord = createServerFn({ method: "POST", strict: false })
     saveStore(store);
     recordAudit("deleted", module, id, before, null);
     return id;
-  });
+  };
 
-export const insertAuditLog = createServerFn({ method: "POST", strict: false })
-  .validator(
-    (d: {
-      action: string;
-      module: string;
-      recordId?: string | null | undefined;
-      oldValue?: unknown;
-      newValue?: unknown;
-    }) => d,
-  )
-  .handler(async ({ data }) => {
+export const insertAuditLog = async ({ data }: { data: { action: string; module: string; recordId?: string | null | undefined; oldValue?: unknown; newValue?: unknown } }) => {
     recordAudit(
       data.action as "created" | "updated" | "deleted",
       data.module,
@@ -327,11 +313,9 @@ export const insertAuditLog = createServerFn({ method: "POST", strict: false })
       data.oldValue,
       data.newValue,
     );
-  });
+  };
 
-export const insertNotification = createServerFn({ method: "POST", strict: false })
-  .validator((d: { title: string; body: string; type: string; link?: string | undefined }) => d)
-  .handler(async ({ data }) => {
+export const insertNotification = async ({ data }: { data: { title: string; body: string; type: string; link?: string | undefined } }) => {
     const store = loadStore();
     store.notifications.unshift({
       id: uuid(),
@@ -343,11 +327,9 @@ export const insertNotification = createServerFn({ method: "POST", strict: false
       created_at: nowIso(),
     });
     saveStore(store);
-  });
+  };
 
-export const setUserRole = createServerFn({ method: "POST", strict: false })
-  .validator((d: { userId: string; role: string }) => d)
-  .handler(async ({ data }) => {
+export const setUserRole = async ({ data }: { data: { userId: string; role: string } }) => {
     const store = loadStore();
     store.user_roles = store.user_roles.filter((r) => r["user_id"] !== data.userId);
     store.user_roles.push({
@@ -357,11 +339,9 @@ export const setUserRole = createServerFn({ method: "POST", strict: false })
       created_at: nowIso(),
     });
     saveStore(store);
-  });
+  };
 
-export const bulkInsertExpenses = createServerFn({ method: "POST", strict: false })
-  .validator((d: { rows: Row[] }) => d)
-  .handler(async ({ data }) => {
+export const bulkInsertExpenses = async ({ data }: { data: { rows: Row[] } }) => {
     const store = loadStore();
     const now = nowIso();
     for (const values of data.rows) {
@@ -383,49 +363,43 @@ export const bulkInsertExpenses = createServerFn({ method: "POST", strict: false
     saveStore(store);
     recordAudit("created", "Expenses Bulk CSV Import", null, null, { count: data.rows.length });
     return { count: data.rows.length };
-  });
+  };
 
 /* --------------------------------------------------------------- list: masters */
 
-export const listClients = createServerFn({ method: "GET", strict: false }).handler(async () => {
+export const listClients = async () => {
   const store = loadStore();
   const rows = (store.clients || [])
     .filter((c) => !c["deleted_at"])
     .sort((a, b) => String(a["name"] ?? "").localeCompare(String(b["name"] ?? "")));
   return mapRows(rows);
-});
+};
 
-export const listProjectTypes = createServerFn({ method: "GET", strict: false }).handler(
-  async () => {
+export const listProjectTypes = async () => {
     const store = loadStore();
     const rows = (store.project_types || []).sort((a, b) =>
       String(a["name"] ?? "").localeCompare(String(b["name"] ?? "")),
     );
     return mapRows(rows);
-  },
-);
+  };
 
-export const listExpenseCategories = createServerFn({ method: "GET", strict: false }).handler(
-  async () => {
+export const listExpenseCategories = async () => {
     const store = loadStore();
     const rows = (store.expense_categories || []).sort((a, b) =>
       String(a["name"] ?? "").localeCompare(String(b["name"] ?? "")),
     );
     return mapRows(rows);
-  },
-);
+  };
 
-export const listPaymentModes = createServerFn({ method: "GET", strict: false }).handler(
-  async () => {
+export const listPaymentModes = async () => {
     const store = loadStore();
     const rows = (store.payment_modes || []).sort((a, b) =>
       String(a["name"] ?? "").localeCompare(String(b["name"] ?? "")),
     );
     return mapRows(rows);
-  },
-);
+  };
 
-export const listPriceLists = createServerFn({ method: "GET", strict: false }).handler(async () => {
+export const listPriceLists = async () => {
   const store = loadStore();
   const pts = store.project_types || [];
   const rows = (store.price_lists || []).map((pl) => {
@@ -435,34 +409,32 @@ export const listPriceLists = createServerFn({ method: "GET", strict: false }).h
     return mapped;
   });
   return rows;
-});
+};
 
-export const listFinancialYears = createServerFn({ method: "GET", strict: false }).handler(
-  async () => {
+export const listFinancialYears = async () => {
     const store = loadStore();
     const rows = (store.financial_years || []).sort((a, b) =>
       String(a["start_date"] ?? "").localeCompare(String(b["start_date"] ?? "")),
     );
     return mapRows(rows);
-  },
-);
+  };
 
-export const listPartners = createServerFn({ method: "GET", strict: false }).handler(async () => {
+export const listPartners = async () => {
   const store = loadStore();
   const rows = (store.partners || []).sort((a, b) =>
     String(a["name"] ?? "").localeCompare(String(b["name"] ?? "")),
   );
   return mapRows(rows);
-});
+};
 
-export const listSettings = createServerFn({ method: "GET", strict: false }).handler(async () => {
+export const listSettings = async () => {
   const store = loadStore();
   return store.settings || {};
-});
+};
 
 /* ----------------------------------------------------------- list: transactions */
 
-export const listProjects = createServerFn({ method: "GET", strict: false }).handler(async () => {
+export const listProjects = async () => {
   const store = loadStore();
   const clients = store.clients || [];
   const projectTypes = store.project_types || [];
@@ -484,9 +456,9 @@ export const listProjects = createServerFn({ method: "GET", strict: false }).han
     });
 
   return rows;
-});
+};
 
-export const listPayments = createServerFn({ method: "GET", strict: false }).handler(async () => {
+export const listPayments = async () => {
   const store = loadStore();
   const clients = store.clients || [];
   const modes = store.payment_modes || [];
@@ -505,9 +477,9 @@ export const listPayments = createServerFn({ method: "GET", strict: false }).han
     });
 
   return rows;
-});
+};
 
-export const listExpenses = createServerFn({ method: "GET", strict: false }).handler(async () => {
+export const listExpenses = async () => {
   const store = loadStore();
   const partners = store.partners || [];
   const categories = store.expense_categories || [];
@@ -529,63 +501,55 @@ export const listExpenses = createServerFn({ method: "GET", strict: false }).han
     });
 
   return rows;
-});
+};
 
-export const listPartnerCapital = createServerFn({ method: "GET", strict: false }).handler(
-  async () => {
+export const listPartnerCapital = async () => {
     const store = loadStore();
     const rows = (store.partner_capital || []).sort((a, b) =>
       String(b["entry_date"] ?? "").localeCompare(String(a["entry_date"] ?? "")),
     );
     return mapRows(rows);
-  },
-);
+  };
 
-export const listPartnerDrawings = createServerFn({ method: "GET", strict: false }).handler(
-  async () => {
+export const listPartnerDrawings = async () => {
     const store = loadStore();
     const rows = (store.partner_drawings || []).sort((a, b) =>
       String(b["entry_date"] ?? "").localeCompare(String(a["entry_date"] ?? "")),
     );
     return mapRows(rows);
-  },
-);
+  };
 
-export const listAlerts = createServerFn({ method: "GET", strict: false }).handler(async () => {
+export const listAlerts = async () => {
   const store = loadStore();
   const rows = (store.alerts || []).sort((a, b) =>
     String(b["created_at"] ?? "").localeCompare(String(a["created_at"] ?? "")),
   );
   return mapRows(rows);
-});
+};
 
-export const listAuditLogs = createServerFn({ method: "GET", strict: false }).handler(async () => {
+export const listAuditLogs = async () => {
   const store = loadStore();
   const rows = (store.audit_logs || []).sort((a, b) =>
     String(b["created_at"] ?? "").localeCompare(String(a["created_at"] ?? "")),
   );
   return mapRows(rows);
-});
+};
 
-export const listNotifications = createServerFn({ method: "GET", strict: false }).handler(
-  async () => {
+export const listNotifications = async () => {
     const store = loadStore();
     const rows = (store.notifications || []).sort((a, b) =>
       String(b["created_at"] ?? "").localeCompare(String(a["created_at"] ?? "")),
     );
     return mapRows(rows);
-  },
-);
+  };
 
-export const listDocuments = createServerFn({ method: "GET", strict: false })
-  .validator((d: { entityType: string; entityId: string }) => d)
-  .handler(async ({ data }) => {
+export const listDocuments = async ({ data }: { data: { entityType: string; entityId: string } }) => {
     const store = loadStore();
     const rows = (store.documents || [])
       .filter((doc) => doc["entity_type"] === data.entityType && doc["entity_id"] === data.entityId)
       .sort((a, b) => String(b["created_at"] ?? "").localeCompare(String(a["created_at"] ?? "")));
     return mapRows(rows);
-  });
+  };
 
 export type StaffRow = {
   id: string;
@@ -599,8 +563,7 @@ export type StaffRow = {
   role: string | null;
 };
 
-export const listStaff = createServerFn({ method: "GET", strict: false }).handler(
-  async (): Promise<StaffRow[]> => {
+export const listStaff = async (): Promise<StaffRow[]> => {
     const store = loadStore();
     const profiles = store.profiles || [];
     const roles = store.user_roles || [];
@@ -613,6 +576,6 @@ export const listStaff = createServerFn({ method: "GET", strict: false }).handle
         role: (roleRow?.["role"] as string) ?? null,
       } as StaffRow;
     });
-  },
-);
+  };
+
 
