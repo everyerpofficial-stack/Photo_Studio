@@ -12,4 +12,10 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // This app deploys to Vercel (see vercel.json), not Cloudflare — override the
+  // Lovable default so Nitro emits a Vercel-compatible server instead of a
+  // Cloudflare Worker (which Vercel cannot run, causing every request to 500).
+  nitro: {
+    preset: "vercel",
+  },
 });
