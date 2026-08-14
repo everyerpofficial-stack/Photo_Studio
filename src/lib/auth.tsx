@@ -1,6 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 export type Role = "partner" | "accountant" | "coordinator" | "editor";
 
@@ -14,29 +12,22 @@ export type Profile = {
 
 type AuthState = {
   loading: boolean;
-  session: Session | null;
-  user: User | null;
   profile: Profile | null;
   role: Role | null;
   signOut: () => Promise<void>;
-  refresh: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
 
-const DEFAULT_USER: User = {
-  id: "00000000-0000-0000-0000-000000000000",
-  app_metadata: {},
-  user_metadata: { full_name: "Studio Admin" },
-  aud: "authenticated",
-  created_at: new Date().toISOString(),
-  email: "admin@leonis.studio",
-} as User;
+// Placeholder identity used until a real login flow is built. Matches the
+// row seeded in the local database (src/lib/server/db.server.ts).
+export const DEFAULT_USER_ID = "00000000-0000-0000-0000-000000000000";
+export const DEFAULT_USER_EMAIL = "admin@leonis.studio";
 
 const DEFAULT_PROFILE: Profile = {
-  id: "00000000-0000-0000-0000-000000000000",
+  id: DEFAULT_USER_ID,
   full_name: "Studio Admin",
-  email: "admin@leonis.studio",
+  email: DEFAULT_USER_EMAIL,
   is_active: true,
   last_login: null,
 };
@@ -44,52 +35,14 @@ const DEFAULT_PROFILE: Profile = {
 const DEFAULT_ROLE: Role = "partner";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [loading, setLoading] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(DEFAULT_PROFILE);
-  const [role, setRole] = useState<Role | null>(DEFAULT_ROLE);
-
-  const load = async (uid: string | undefined) => {
-    if (!uid) {
-      setProfile(DEFAULT_PROFILE);
-      setRole(DEFAULT_ROLE);
-      return;
-    }
-    const [{ data: prof }, { data: roles }] = await Promise.all([
-      supabase.from("profiles").select("id,full_name,email,is_active,last_login").eq("id", uid).maybeSingle(),
-      supabase.from("user_roles").select("role").eq("user_id", uid),
-    ]);
-    setProfile((prof as Profile) ?? DEFAULT_PROFILE);
-    const order: Role[] = ["partner", "accountant", "coordinator", "editor"];
-    const found = (roles ?? []).map((r) => r.role as Role).sort((a, b) => order.indexOf(a) - order.indexOf(b));
-    setRole(found[0] ?? DEFAULT_ROLE);
-  };
-
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      void load(s?.user?.id).finally(() => setLoading(false));
-    });
-    void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      void load(data.session?.user?.id).finally(() => setLoading(false));
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
   const value = useMemo<AuthState>(
     () => ({
       loading: false,
-      session,
-      user: session?.user ?? DEFAULT_USER,
-      profile: profile ?? DEFAULT_PROFILE,
-      role: role ?? DEFAULT_ROLE,
-      signOut: async () => {
-        await supabase.auth.signOut();
-      },
-      refresh: async () => load(session?.user?.id),
+      profile: DEFAULT_PROFILE,
+      role: DEFAULT_ROLE,
+      signOut: async () => {},
     }),
-    [session, profile, role],
+    [],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -101,7 +54,7 @@ export function useAuth() {
   return ctx;
 }
 
-/** Frontend mirror of the database access rules. The database is the real gate. */
+/** Frontend mirror of the (currently unenforced) access rules — kept so permission-gated UI stays intact once real auth returns. */
 export const permissions = {
   viewFinance: ["partner", "accountant", "coordinator"] as Role[],
   viewPartnerFinance: ["partner", "accountant"] as Role[],

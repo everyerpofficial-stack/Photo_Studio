@@ -3,7 +3,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Field } from "@/components/forms/ProjectForm";
 import { FileUploader } from "@/components/FileUploader";
 import {
@@ -15,7 +21,7 @@ import {
   type Expense,
 } from "@/lib/api";
 import { today } from "@/lib/format";
-import { useAuth, useCan } from "@/lib/auth";
+import { useCan } from "@/lib/auth";
 
 type FormValues = {
   expense_date: string;
@@ -43,7 +49,6 @@ export function ExpenseForm({
   const { data: clients = [] } = useClients();
   const { data: projects = [] } = useProjects();
   const save = useSaveRecord("expenses", "Expense");
-  const { user } = useAuth();
   const can = useCan();
 
   const form = useForm<FormValues>({
@@ -87,7 +92,6 @@ export function ExpenseForm({
         partner_id: values.partner_id || null,
         client_id: values.client_id || null,
         project_id: values.project_id || null,
-        created_by: initial ? undefined : user?.id,
       },
     })) as { id?: string } | null;
     if (Number(values.amount) > 10000) {
@@ -109,7 +113,11 @@ export function ExpenseForm({
           <Input type="date" max={today()} {...form.register("expense_date")} />
         </Field>
 
-        <Field label="Amount (₹)" required hint={billRequired ? "Bill number + attachment mandatory" : undefined}>
+        <Field
+          label="Amount (₹)"
+          required
+          hint={billRequired ? "Bill number + attachment mandatory" : undefined}
+        >
           <Input
             type="number"
             step="0.01"
@@ -225,7 +233,11 @@ export function ExpenseForm({
       <FileUploader entityType="expense" entityId={initial?.id} label="Bill attachment" compact />
 
       <div className="sticky bottom-0 -mx-1 flex flex-wrap gap-2 border-t bg-card/95 px-1 py-3 backdrop-blur">
-        <Button type="submit" disabled={save.isPending || lockedCapital} className="flex-1 sm:flex-none">
+        <Button
+          type="submit"
+          disabled={save.isPending || lockedCapital}
+          className="flex-1 sm:flex-none"
+        >
           Save
         </Button>
         {!initial && (

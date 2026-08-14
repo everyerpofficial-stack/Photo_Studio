@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { insertAuditLog, insertNotification } from "./records";
 
 export type AuditAction =
   | "created"
@@ -17,18 +17,9 @@ export async function logAudit(
   oldValue?: unknown,
   newValue?: unknown,
 ) {
-  const { data } = await supabase.auth.getUser();
-  await supabase.from("audit_logs").insert({
-    user_id: data.user?.id ?? null,
-    user_email: data.user?.email ?? null,
-    action,
-    module,
-    record_id: recordId ?? null,
-    old_value: (oldValue ?? null) as never,
-    new_value: (newValue ?? null) as never,
-  });
+  await insertAuditLog({ data: { action, module, recordId, oldValue, newValue } });
 }
 
 export async function notify(title: string, body: string, type = "system", link?: string) {
-  await supabase.from("notifications").insert({ title, body, type, link: link ?? null });
+  await insertNotification({ data: { title, body, type, link } });
 }

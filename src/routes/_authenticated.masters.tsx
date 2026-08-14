@@ -55,8 +55,8 @@ function NameList({
             return;
           }
           const values: Record<string, unknown> = { name: name.trim(), is_active: true };
-          if (table === "expense_categories") values.default_class = "operating";
-          if (table === "partners") values.profit_share = 0;
+          if (table === "expense_categories") values["default_class"] = "operating";
+          if (table === "partners") values["profit_share"] = 0;
           save.mutate({ values }, { onSuccess: () => setName("") });
         }}
       >

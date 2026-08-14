@@ -3,7 +3,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Field } from "@/components/forms/ProjectForm";
 import { FileUploader } from "@/components/FileUploader";
 import {
@@ -17,7 +23,6 @@ import {
   type Payment,
 } from "@/lib/api";
 import { inr, today } from "@/lib/format";
-import { useAuth } from "@/lib/auth";
 import { notify } from "@/lib/audit";
 
 type FormValues = {
@@ -45,7 +50,6 @@ export function PaymentForm({
   const { data: payments = [] } = usePayments();
   const { data: expenses = [] } = useExpenses();
   const save = useSaveRecord("payments", "Payment");
-  const { user } = useAuth();
 
   const form = useForm<FormValues>({
     defaultValues: {
@@ -74,7 +78,11 @@ export function PaymentForm({
       toast.error("Client is required for a client payment.");
       return;
     }
-    if (values.payment_type === "client_payment" && Number(values.amount) > outstanding && outstanding > 0) {
+    if (
+      values.payment_type === "client_payment" &&
+      Number(values.amount) > outstanding &&
+      outstanding > 0
+    ) {
       toast.warning(`Amount exceeds outstanding due of ${inr(outstanding)} — recorded as advance.`);
     }
     const saved = (await save.mutateAsync({
@@ -84,8 +92,6 @@ export function PaymentForm({
         client_id: values.client_id || null,
         mode_id: values.mode_id || null,
         needs_approval: needsApproval,
-        received_by: user?.id ?? null,
-        created_by: initial ? undefined : user?.id,
       },
     })) as { id?: string } | null;
 
@@ -98,7 +104,12 @@ export function PaymentForm({
       );
       toast.warning("Cash receipt above ₹50,000 — partner approval requested.");
     } else {
-      await notify("Payment received", `${inr(Number(values.amount))} received.`, "payment_received", "/payments");
+      await notify(
+        "Payment received",
+        `${inr(Number(values.amount))} received.`,
+        "payment_received",
+        "/payments",
+      );
     }
 
     if (again) {
@@ -192,7 +203,12 @@ export function PaymentForm({
         <Textarea rows={2} {...form.register("notes")} />
       </Field>
 
-      <FileUploader entityType="payment" entityId={initial?.id} label="Receipt photo / PDF" compact />
+      <FileUploader
+        entityType="payment"
+        entityId={initial?.id}
+        label="Receipt photo / PDF"
+        compact
+      />
 
       <div className="sticky bottom-0 -mx-1 flex flex-wrap gap-2 border-t bg-card/95 px-1 py-3 backdrop-blur">
         <Button type="submit" disabled={save.isPending} className="flex-1 sm:flex-none">

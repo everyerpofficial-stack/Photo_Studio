@@ -1,11 +1,18 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { setUserRole } from "@/lib/records";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/DataTable";
@@ -26,7 +33,10 @@ export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
       { title: "Settings — LEONIS" },
-      { name: "description", content: "Company profile, users, roles, financial years and thresholds." },
+      {
+        name: "description",
+        content: "Company profile, users, roles, financial years and thresholds.",
+      },
       { property: "og:title", content: "Settings — LEONIS" },
       { property: "og:description", content: "Manage company settings, users and permissions." },
       { name: "robots", content: "noindex" },
@@ -74,7 +84,11 @@ function CompanyProfileSection() {
           <Input value={city} onChange={(e) => setCity(e.target.value)} />
         </Field>
         <Field label="GSTIN">
-          <Input value={gstin} onChange={(e) => setGstin(e.target.value)} placeholder="22AAAAA0000A1Z5" />
+          <Input
+            value={gstin}
+            onChange={(e) => setGstin(e.target.value)}
+            placeholder="22AAAAA0000A1Z5"
+          />
         </Field>
         <Field label="Phone">
           <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
@@ -128,7 +142,11 @@ function ThresholdsSection() {
           <Input type="number" value={billReq} onChange={(e) => setBillReq(e.target.value)} />
         </Field>
         <Field label="Cash approval above (₹)">
-          <Input type="number" value={cashApproval} onChange={(e) => setCashApproval(e.target.value)} />
+          <Input
+            type="number"
+            value={cashApproval}
+            onChange={(e) => setCashApproval(e.target.value)}
+          />
         </Field>
         <Field label="Low margin (%)">
           <Input type="number" value={lowMargin} onChange={(e) => setLowMargin(e.target.value)} />
@@ -137,7 +155,11 @@ function ThresholdsSection() {
           <Input type="number" value={expSpike} onChange={(e) => setExpSpike(e.target.value)} />
         </Field>
         <Field label="Overdue days">
-          <Input type="number" value={overdueDays} onChange={(e) => setOverdueDays(e.target.value)} />
+          <Input
+            type="number"
+            value={overdueDays}
+            onChange={(e) => setOverdueDays(e.target.value)}
+          />
         </Field>
       </div>
       <Button className="mt-4" onClick={handleSave} disabled={save.isPending}>
@@ -151,16 +173,15 @@ function UsersSection() {
   const { data: staff = [], isLoading } = useStaff();
   const can = useCan();
   const saveProfile = useSaveRecord("profiles", "User profile");
+  const qc = useQueryClient();
 
   const handleRoleChange = async (userId: string, newRole: Role) => {
     try {
-      const { error } = await supabase
-        .from("user_roles")
-        .upsert({ user_id: userId, role: newRole } as never, { onConflict: "user_id" });
-      if (error) throw error;
+      await setUserRole({ data: { userId, role: newRole } });
+      qc.invalidateQueries({ queryKey: ["staff"] });
       toast.success("User role updated.");
-    } catch (e: any) {
-      toast.error(`Failed to update role: ${e.message}`);
+    } catch (e) {
+      toast.error(`Failed to update role: ${e instanceof Error ? e.message : "Unknown error"}`);
     }
   };
 
@@ -170,8 +191,18 @@ function UsersSection() {
         rows={staff}
         loading={isLoading}
         columns={[
-          { key: "n", header: "Name", cell: (s) => s.full_name ?? "—", sortValue: (s) => s.full_name ?? "" },
-          { key: "e", header: "Email", cell: (s) => s.email ?? "—", sortValue: (s) => s.email ?? "" },
+          {
+            key: "n",
+            header: "Name",
+            cell: (s) => s.full_name ?? "—",
+            sortValue: (s) => s.full_name ?? "",
+          },
+          {
+            key: "e",
+            header: "Email",
+            cell: (s) => s.email ?? "—",
+            sortValue: (s) => s.email ?? "",
+          },
           {
             key: "r",
             header: "Role",
@@ -195,7 +226,13 @@ function UsersSection() {
               ) : (
                 <StatusChip
                   label={s.role ? roleLabel[s.role as Role] : "Unassigned"}
-                  tone={s.role === "partner" ? "primary" : s.role === "accountant" ? "success" : "neutral"}
+                  tone={
+                    s.role === "partner"
+                      ? "primary"
+                      : s.role === "accountant"
+                        ? "success"
+                        : "neutral"
+                  }
                 />
               ),
             sortValue: (s) => s.role ?? "",
@@ -208,12 +245,17 @@ function UsersSection() {
                 <div className="flex items-center gap-2">
                   <Switch
                     checked={s.is_active}
-                    onCheckedChange={(checked) => saveProfile.mutate({ id: s.id, values: { is_active: checked } })}
+                    onCheckedChange={(checked) =>
+                      saveProfile.mutate({ id: s.id, values: { is_active: checked } })
+                    }
                   />
                   <span className="text-xs">{s.is_active ? "Active" : "Disabled"}</span>
                 </div>
               ) : (
-                <StatusChip label={s.is_active ? "Active" : "Disabled"} tone={s.is_active ? "success" : "danger"} />
+                <StatusChip
+                  label={s.is_active ? "Active" : "Disabled"}
+                  tone={s.is_active ? "success" : "danger"}
+                />
               ),
             sortValue: (s) => String(s.is_active),
           },
@@ -287,7 +329,12 @@ function FinancialYearsSection() {
           {
             key: "c",
             header: "Current",
-            cell: (y) => <StatusChip label={y.is_current ? "Active" : "Past"} tone={y.is_current ? "success" : "neutral"} />,
+            cell: (y) => (
+              <StatusChip
+                label={y.is_current ? "Active" : "Past"}
+                tone={y.is_current ? "success" : "neutral"}
+              />
+            ),
             sortValue: (y) => String(y.is_current),
           },
         ]}
@@ -307,8 +354,18 @@ function AuditSection() {
         rows={logs.slice(0, 50)}
         loading={isLoading}
         columns={[
-          { key: "t", header: "When", cell: (l) => fmtDateTime(l.created_at), sortValue: (l) => l.created_at },
-          { key: "u", header: "User", cell: (l) => l.user_email ?? "System", sortValue: (l) => l.user_email ?? "" },
+          {
+            key: "t",
+            header: "When",
+            cell: (l) => fmtDateTime(l.created_at),
+            sortValue: (l) => l.created_at,
+          },
+          {
+            key: "u",
+            header: "User",
+            cell: (l) => l.user_email ?? "System",
+            sortValue: (l) => l.user_email ?? "",
+          },
           { key: "a", header: "Action", cell: (l) => l.action, sortValue: (l) => l.action },
           { key: "m", header: "Module", cell: (l) => l.module, sortValue: (l) => l.module },
           {

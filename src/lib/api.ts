@@ -1,7 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { logAudit } from "./audit";
+import {
+  deleteRecord,
+  listAlerts as listAlertsFn,
+  listAuditLogs as listAuditLogsFn,
+  listClients as listClientsFn,
+  listDocuments as listDocumentsFn,
+  listExpenseCategories as listExpenseCategoriesFn,
+  listExpenses as listExpensesFn,
+  listFinancialYears as listFinancialYearsFn,
+  listNotifications as listNotificationsFn,
+  listPartnerCapital as listPartnerCapitalFn,
+  listPartnerDrawings as listPartnerDrawingsFn,
+  listPartners as listPartnersFn,
+  listPaymentModes as listPaymentModesFn,
+  listPayments as listPaymentsFn,
+  listPriceLists as listPriceListsFn,
+  listProjectTypes as listProjectTypesFn,
+  listProjects as listProjectsFn,
+  listSettings as listSettingsFn,
+  listStaff as listStaffFn,
+  saveRecord,
+} from "./records";
 import { financialYear, margin } from "./format";
 
 export type Row = Record<string, unknown>;
@@ -80,230 +100,181 @@ export type Expense = {
 
 export type Partner = { id: string; name: string; profit_share: number; is_active: boolean };
 
-const err = (e: unknown) => {
-  const message =
-    (e as { message?: string })?.message ||
-    (e instanceof Error ? e.message : "Something went wrong. Please try again.");
-  toast.error(message);
-  throw e;
-};
-
-async function fetchAll<T>(table: string, select: string, order: { col: string; asc?: boolean }) {
-  const { data, error } = await supabase
-    .from(table as never)
-    .select(select)
-    .is("deleted_at", null)
-    .order(order.col, { ascending: order.asc ?? false });
-  if (error) {
-    // tables without deleted_at column (e.g. Postgres 42703 or PostgREST PGRST204)
-    if (error.code === "42703" || error.code === "PGRST204" || error.message?.includes("deleted_at")) {
-      const res = await supabase
-        .from(table as never)
-        .select(select)
-        .order(order.col, { ascending: order.asc ?? false });
-      if (res.error) err(res.error);
-      return (res.data ?? []) as T[];
-    }
-    err(error);
-  }
-  return (data ?? []) as T[];
-}
-
 export const useClients = () =>
-  useQuery({ queryKey: ["clients"], queryFn: () => fetchAll<Client>("clients", "*", { col: "name", asc: true }) });
+  useQuery({ queryKey: ["clients"], queryFn: () => listClientsFn() as Promise<Client[]> });
 
 export const useProjectTypes = () =>
   useQuery({
     queryKey: ["project_types"],
-    queryFn: () => fetchAll<Master>("project_types", "*", { col: "name", asc: true }),
+    queryFn: () => listProjectTypesFn() as Promise<Master[]>,
   });
 
 export const useExpenseCategories = () =>
   useQuery({
     queryKey: ["expense_categories"],
     queryFn: () =>
-      fetchAll<Master & { default_class: Expense["expense_class"] }>("expense_categories", "*", {
-        col: "name",
-        asc: true,
-      }),
+      listExpenseCategoriesFn() as Promise<
+        (Master & { default_class: Expense["expense_class"] })[]
+      >,
   });
 
 export const usePaymentModes = () =>
   useQuery({
     queryKey: ["payment_modes"],
-    queryFn: () => fetchAll<Master>("payment_modes", "*", { col: "name", asc: true }),
+    queryFn: () => listPaymentModesFn() as Promise<Master[]>,
   });
 
 export const usePriceLists = () =>
   useQuery({
     queryKey: ["price_lists"],
     queryFn: () =>
-      fetchAll<{
-        id: string;
-        project_type_id: string;
-        rate: number;
-        effective_from: string;
-        effective_to: string | null;
-        is_active: boolean;
-        project_types?: { name: string } | null;
-      }>("price_lists", "*, project_types(name)", { col: "effective_from" }),
+      listPriceListsFn() as Promise<
+        {
+          id: string;
+          project_type_id: string;
+          rate: number;
+          effective_from: string;
+          effective_to: string | null;
+          is_active: boolean;
+          project_types?: { name: string } | null;
+        }[]
+      >,
   });
 
 export const useFinancialYears = () =>
   useQuery({
     queryKey: ["financial_years"],
     queryFn: () =>
-      fetchAll<{ id: string; label: string; start_date: string; end_date: string; is_current: boolean }>(
-        "financial_years",
-        "*",
-        { col: "start_date" },
-      ),
+      listFinancialYearsFn() as Promise<
+        { id: string; label: string; start_date: string; end_date: string; is_current: boolean }[]
+      >,
   });
 
 export const usePartners = () =>
-  useQuery({
-    queryKey: ["partners"],
-    queryFn: () => fetchAll<Partner>("partners", "*", { col: "name", asc: true }),
-  });
+  useQuery({ queryKey: ["partners"], queryFn: () => listPartnersFn() as Promise<Partner[]> });
 
 export const useSettings = () =>
-  useQuery({
-    queryKey: ["settings"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("settings").select("*");
-      if (error) err(error);
-      const map: Record<string, Record<string, unknown>> = {};
-      (data ?? []).forEach((s) => {
-        map[s.key] = (s.value ?? {}) as Record<string, unknown>;
-      });
-      return map;
-    },
-  });
+  useQuery({ queryKey: ["settings"], queryFn: () => listSettingsFn() });
 
 /* ------------------------------------------------------------- transactions */
 
 export const useProjects = () =>
-  useQuery({
-    queryKey: ["projects"],
-    queryFn: () =>
-      fetchAll<Project>("projects", "*, clients(name), project_types(name), partners(name)", { col: "shoot_date" }),
-  });
+  useQuery({ queryKey: ["projects"], queryFn: () => listProjectsFn() as Promise<Project[]> });
 
 export const usePayments = () =>
-  useQuery({
-    queryKey: ["payments"],
-    queryFn: () => fetchAll<Payment>("payments", "*, clients(name), payment_modes(name)", { col: "payment_date" }),
-  });
+  useQuery({ queryKey: ["payments"], queryFn: () => listPaymentsFn() as Promise<Payment[]> });
 
 export const useExpenses = () =>
-  useQuery({
-    queryKey: ["expenses"],
-    queryFn: () =>
-      fetchAll<Expense>("expenses", "*, partners(name), expense_categories(name), clients(name)", {
-        col: "expense_date",
-      }),
-  });
+  useQuery({ queryKey: ["expenses"], queryFn: () => listExpensesFn() as Promise<Expense[]> });
 
 export const usePartnerCapital = () =>
   useQuery({
     queryKey: ["partner_capital"],
     queryFn: () =>
-      fetchAll<{ id: string; partner_id: string; entry_date: string; amount: number; notes: string | null }>(
-        "partner_capital",
-        "*",
-        { col: "entry_date" },
-      ),
+      listPartnerCapitalFn() as Promise<
+        {
+          id: string;
+          partner_id: string;
+          entry_date: string;
+          amount: number;
+          notes: string | null;
+        }[]
+      >,
   });
 
 export const usePartnerDrawings = () =>
   useQuery({
     queryKey: ["partner_drawings"],
     queryFn: () =>
-      fetchAll<{ id: string; partner_id: string; entry_date: string; amount: number; notes: string | null }>(
-        "partner_drawings",
-        "*",
-        { col: "entry_date" },
-      ),
+      listPartnerDrawingsFn() as Promise<
+        {
+          id: string;
+          partner_id: string;
+          entry_date: string;
+          amount: number;
+          notes: string | null;
+        }[]
+      >,
   });
 
 export const useAlerts = () =>
   useQuery({
     queryKey: ["alerts"],
     queryFn: () =>
-      fetchAll<{
-        id: string;
-        type: string;
-        title: string;
-        description: string | null;
-        amount: number | null;
-        severity: string;
-        entity_type: string | null;
-        entity_id: string | null;
-        status: string;
-        created_at: string;
-      }>("alerts", "*", { col: "created_at" }),
+      listAlertsFn() as Promise<
+        {
+          id: string;
+          type: string;
+          title: string;
+          description: string | null;
+          amount: number | null;
+          severity: string;
+          entity_type: string | null;
+          entity_id: string | null;
+          status: string;
+          created_at: string;
+        }[]
+      >,
   });
 
 export const useAuditLogs = () =>
   useQuery({
     queryKey: ["audit_logs"],
     queryFn: () =>
-      fetchAll<{
-        id: string;
-        user_email: string | null;
-        action: string;
-        module: string;
-        record_id: string | null;
-        old_value: unknown;
-        new_value: unknown;
-        created_at: string;
-      }>("audit_logs", "*", { col: "created_at" }),
+      listAuditLogsFn() as Promise<
+        {
+          id: string;
+          user_email: string | null;
+          action: string;
+          module: string;
+          record_id: string | null;
+          old_value: unknown;
+          new_value: unknown;
+          created_at: string;
+        }[]
+      >,
   });
 
 export const useNotifications = () =>
   useQuery({
     queryKey: ["notifications"],
     queryFn: () =>
-      fetchAll<{
-        id: string;
-        title: string;
-        body: string | null;
-        type: string;
-        is_read: boolean;
-        link: string | null;
-        created_at: string;
-      }>("notifications", "*", { col: "created_at" }),
+      listNotificationsFn() as Promise<
+        {
+          id: string;
+          title: string;
+          body: string | null;
+          type: string;
+          is_read: boolean;
+          link: string | null;
+          created_at: string;
+        }[]
+      >,
   });
+
+export type Document = {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  file_path: string;
+  file_name: string;
+  mime_type: string | null;
+  size_bytes: number | null;
+  created_at: string;
+};
 
 export const useDocuments = (entityType: string, entityId?: string) =>
   useQuery({
     queryKey: ["documents", entityType, entityId],
     enabled: !!entityId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("documents")
-        .select("*")
-        .eq("entity_type", entityType)
-        .eq("entity_id", entityId!)
-        .order("created_at", { ascending: false });
-      if (error) err(error);
-      return data ?? [];
-    },
+    queryFn: () =>
+      listDocumentsFn({ data: { entityType, entityId: entityId! } }) as Promise<Document[]>,
   });
 
 export const useStaff = () =>
   useQuery({
     queryKey: ["staff"],
-    queryFn: async () => {
-      const [{ data: profiles }, { data: roles }] = await Promise.all([
-        supabase.from("profiles").select("*").order("created_at"),
-        supabase.from("user_roles").select("*"),
-      ]);
-      return (profiles ?? []).map((p) => ({
-        ...p,
-        role: (roles ?? []).find((r) => r.user_id === p.id)?.role ?? null,
-      }));
-    },
+    queryFn: () => listStaffFn() as Promise<import("./records").StaffRow[]>,
   });
 
 /* ----------------------------------------------------------------- mutations */
@@ -333,29 +304,11 @@ const invalidateAll = (qc: ReturnType<typeof useQueryClient>) => {
 export function useSaveRecord(table: string, module: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, values }: { id?: string | undefined; values: Row }) => {
-      if (id) {
-        const { data: before } = await supabase.from(table as never).select("*").eq("id", id).maybeSingle();
-        const { data, error } = await supabase
-          .from(table as never)
-          .update(values as never)
-          .eq("id", id)
-          .select()
-          .maybeSingle();
-        if (error) err(error);
-        await logAudit("updated", module, id, before, data);
-        return data;
-      }
-      const { data, error } = await supabase
-        .from(table as never)
-        .insert(values as never)
-        .select()
-        .maybeSingle();
-      if (error) err(error);
-      const created = data as { id?: string } | null;
-      await logAudit("created", module, created?.id ?? null, null, data);
-      return data;
-    },
+    mutationFn: ({ id, values }: { id?: string | undefined; values: Row }) =>
+      saveRecord({ data: { table, id, values, module } }).catch((e: unknown) => {
+        toast.error(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+        throw e;
+      }),
     onSuccess: (_d, vars) => {
       invalidateAll(qc);
       toast.success(`${module} ${vars.id ? "updated" : "added"} successfully.`);
@@ -366,21 +319,11 @@ export function useSaveRecord(table: string, module: string) {
 export function useDeleteRecord(table: string, module: string, soft = true) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { data: before } = await supabase.from(table as never).select("*").eq("id", id).maybeSingle();
-      if (soft) {
-        const { error } = await supabase
-          .from(table as never)
-          .update({ deleted_at: new Date().toISOString() } as never)
-          .eq("id", id);
-        if (error) err(error);
-      } else {
-        const { error } = await supabase.from(table as never).delete().eq("id", id);
-        if (error) err(error);
-      }
-      await logAudit("deleted", module, id, before, null);
-      return id;
-    },
+    mutationFn: (id: string) =>
+      deleteRecord({ data: { table, id, module, soft } }).catch((e: unknown) => {
+        toast.error(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+        throw e;
+      }),
     onSuccess: () => {
       invalidateAll(qc);
       toast.success(`${module} deleted successfully.`);
@@ -434,10 +377,12 @@ export function filterExpenses(rows: Expense[], f: Filters) {
   );
 }
 
-export const projectExpense = (p: Project) => Number(p.editing_expense) + Number(p.production_expense);
+export const projectExpense = (p: Project) =>
+  Number(p.editing_expense) + Number(p.production_expense);
 export const projectProfit = (p: Project) => Number(p.amount) - projectExpense(p);
 
-export const sum = <T>(rows: T[], get: (r: T) => number) => rows.reduce((t, r) => t + Number(get(r) || 0), 0);
+export const sum = <T>(rows: T[], get: (r: T) => number) =>
+  rows.reduce((t, r) => t + Number(get(r) || 0), 0);
 
 export type ClientStat = {
   client: Client;
@@ -461,7 +406,9 @@ export function computeClientStats(
 ): ClientStat[] {
   return clients.map((client) => {
     const cp = projects.filter((p) => p.client_id === client.id);
-    const pay = payments.filter((p) => p.client_id === client.id && p.payment_type === "client_payment");
+    const pay = payments.filter(
+      (p) => p.client_id === client.id && p.payment_type === "client_payment",
+    );
     const exp = expenses.filter((e) => e.client_id === client.id);
     const billed = sum(cp, (p) => Number(p.amount));
     const received = sum(pay, (p) => Number(p.amount));
@@ -477,7 +424,11 @@ export function computeClientStats(
           : due <= 0
             ? "Settled"
             : "Partial";
-    const lastPayment = pay.map((p) => p.payment_date).sort().reverse()[0] ?? null;
+    const lastPayment =
+      pay
+        .map((p) => p.payment_date)
+        .sort()
+        .reverse()[0] ?? null;
     return {
       client,
       quote: Number(client.final_quote),
@@ -550,11 +501,26 @@ export function computePartnerPositions(
 ): PartnerPosition[] {
   return partners.map((partner) => {
     const ex = expenses.filter((e) => e.partner_id === partner.id);
-    const operating = sum(ex.filter((e) => e.expense_class === "operating"), (e) => Number(e.amount));
-    const financing = sum(ex.filter((e) => e.expense_class === "financing"), (e) => Number(e.amount));
-    const capitalSpend = sum(ex.filter((e) => e.expense_class === "capital"), (e) => Number(e.amount));
-    const invested = sum(capital.filter((c) => c.partner_id === partner.id), (c) => Number(c.amount));
-    const drawn = sum(drawings.filter((d) => d.partner_id === partner.id), (d) => Number(d.amount));
+    const operating = sum(
+      ex.filter((e) => e.expense_class === "operating"),
+      (e) => Number(e.amount),
+    );
+    const financing = sum(
+      ex.filter((e) => e.expense_class === "financing"),
+      (e) => Number(e.amount),
+    );
+    const capitalSpend = sum(
+      ex.filter((e) => e.expense_class === "capital"),
+      (e) => Number(e.amount),
+    );
+    const invested = sum(
+      capital.filter((c) => c.partner_id === partner.id),
+      (c) => Number(c.amount),
+    );
+    const drawn = sum(
+      drawings.filter((d) => d.partner_id === partner.id),
+      (d) => Number(d.amount),
+    );
     const profitShare = (distributableProfit * Number(partner.profit_share)) / 100;
     return {
       partner,
@@ -575,10 +541,26 @@ export function operatingPL(projects: Project[], payments: Payment[], expenses: 
   const revenue = sum(projects, (p) => Number(p.amount));
   const received = sum(payments, (p) => Number(p.amount));
   const operating =
-    sum(expenses.filter((e) => e.expense_class === "operating"), (e) => Number(e.amount)) +
-    sum(projects, projectExpense);
-  const capital = sum(expenses.filter((e) => e.expense_class === "capital"), (e) => Number(e.amount));
-  const financing = sum(expenses.filter((e) => e.expense_class === "financing"), (e) => Number(e.amount));
+    sum(
+      expenses.filter((e) => e.expense_class === "operating"),
+      (e) => Number(e.amount),
+    ) + sum(projects, projectExpense);
+  const capital = sum(
+    expenses.filter((e) => e.expense_class === "capital"),
+    (e) => Number(e.amount),
+  );
+  const financing = sum(
+    expenses.filter((e) => e.expense_class === "financing"),
+    (e) => Number(e.amount),
+  );
   const netProfit = revenue - operating;
-  return { revenue, received, operating, capital, financing, netProfit, marginPct: margin(netProfit, revenue) };
+  return {
+    revenue,
+    received,
+    operating,
+    capital,
+    financing,
+    netProfit,
+    marginPct: margin(netProfit, revenue),
+  };
 }

@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Download, Upload, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { bulkInsertExpenses } from "@/lib/records";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { useExpenseCategories, usePartners } from "@/lib/api";
 import { inr } from "@/lib/format";
-import { logAudit } from "@/lib/audit";
 
 type ParsedRow = {
   date: string;
@@ -43,7 +42,8 @@ export function CsvImportDialog() {
 
   const downloadTemplate = () => {
     const headers = "date,category,amount,partner,notes,bill_no\n";
-    const sample = "2026-08-10,Rent,15000,Mehulbhai,Office rent for August,R-1002\n2026-08-10,Salary,12000,Jayu,Staff payment,S-3004\n";
+    const sample =
+      "2026-08-10,Rent,15000,Mehulbhai,Office rent for August,R-1002\n2026-08-10,Salary,12000,Jayu,Staff payment,S-3004\n";
     const blob = new Blob([headers + sample], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -131,13 +131,11 @@ export function CsvImportDialog() {
 
         // Find Category
         const category = categories.find(
-          (c) => c.name.toLowerCase() === rawCat.toLowerCase() && c.is_active
+          (c) => c.name.toLowerCase() === rawCat.toLowerCase() && c.is_active,
         );
 
         // Find Partner
-        const partner = partners.find(
-          (p) => p.name.toLowerCase() === rawPart.toLowerCase()
-        );
+        const partner = partners.find((p) => p.name.toLowerCase() === rawPart.toLowerCase());
 
         let isValid = true;
         let error = "";
@@ -185,8 +183,6 @@ export function CsvImportDialog() {
 
     setBusy(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-
       const inserts = validRows.map((r) => ({
         expense_date: r.date,
         category_id: r.categoryId!,
@@ -195,13 +191,9 @@ export function CsvImportDialog() {
         partner_id: r.partnerId || null,
         notes: r.notes || null,
         bill_no: r.billNo || null,
-        created_by: userData.user?.id || null,
       }));
 
-      const { error } = await supabase.from("expenses").insert(inserts);
-      if (error) throw error;
-
-      await logAudit("created", "Expenses Bulk CSV Import", null, null, { count: inserts.length });
+      await bulkInsertExpenses({ data: { rows: inserts } });
 
       toast.success(`Successfully imported ${inserts.length} expenses.`);
       setOpen(false);
@@ -235,7 +227,12 @@ export function CsvImportDialog() {
             <span className="text-[12px] text-muted-foreground">
               Don't have a template? Download our standard format template.
             </span>
-            <Button variant="ghost" size="sm" className="h-8 gap-1 text-[12px]" onClick={downloadTemplate}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 text-[12px]"
+              onClick={downloadTemplate}
+            >
               <Download className="size-3.5" /> Template
             </Button>
           </div>
@@ -286,10 +283,17 @@ export function CsvImportDialog() {
                   </thead>
                   <tbody className="divide-y">
                     {rows.map((row, i) => (
-                      <tr key={i} className={row.isValid ? "hover:bg-muted/40" : "bg-danger/5 text-danger-foreground"}>
+                      <tr
+                        key={i}
+                        className={
+                          row.isValid ? "hover:bg-muted/40" : "bg-danger/5 text-danger-foreground"
+                        }
+                      >
                         <td className="p-2 font-mono">{row.date}</td>
                         <td className="p-2">{row.categoryName}</td>
-                        <td className="p-2 text-right font-semibold tabular-nums">{inr(row.amount)}</td>
+                        <td className="p-2 text-right font-semibold tabular-nums">
+                          {inr(row.amount)}
+                        </td>
                         <td className="p-2">{row.partnerName || "—"}</td>
                         <td className="p-2 font-mono">{row.billNo || "—"}</td>
                         <td className="p-2">
@@ -298,7 +302,10 @@ export function CsvImportDialog() {
                               <CheckCircle2 className="size-3.5" /> Valid
                             </span>
                           ) : (
-                            <span className="inline-flex items-start gap-1 text-danger-foreground" title={row.error}>
+                            <span
+                              className="inline-flex items-start gap-1 text-danger-foreground"
+                              title={row.error}
+                            >
                               <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
                               <span className="line-clamp-1">{row.error}</span>
                             </span>
@@ -321,7 +328,10 @@ export function CsvImportDialog() {
                 >
                   Clear
                 </Button>
-                <Button onClick={handleImport} disabled={busy || rows.filter((r) => r.isValid).length === 0}>
+                <Button
+                  onClick={handleImport}
+                  disabled={busy || rows.filter((r) => r.isValid).length === 0}
+                >
                   {busy ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" /> Importing…

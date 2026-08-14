@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { FileUploader } from "@/components/FileUploader";
 import {
   useClients,
@@ -16,7 +22,7 @@ import {
   type Project,
 } from "@/lib/api";
 import { today } from "@/lib/format";
-import { useAuth, useCan } from "@/lib/auth";
+import { useCan } from "@/lib/auth";
 
 type FormValues = {
   client_id: string;
@@ -47,7 +53,6 @@ export function ProjectForm({
   const { data: partners = [] } = usePartners();
   const { data: prices = [] } = usePriceLists();
   const save = useSaveRecord("projects", "Project");
-  const { user } = useAuth();
   const can = useCan();
 
   const form = useForm<FormValues>({
@@ -99,9 +104,10 @@ export function ProjectForm({
       ...values,
       partner_id: values.partner_id || null,
       amount,
-      created_by: initial?.id ? undefined : user?.id,
     };
-    const saved = (await save.mutateAsync({ id: initial?.id, values: payload })) as { id?: string } | null;
+    const saved = (await save.mutateAsync({ id: initial?.id, values: payload })) as {
+      id?: string;
+    } | null;
     if (again) {
       form.reset({ ...values, quantity: 1, editing_expense: 0, production_expense: 0, notes: "" });
       return;
@@ -129,8 +135,15 @@ export function ProjectForm({
           </Select>
         </Field>
 
-        <Field label="Project type" required hint="Rate loads from the price list and stays editable">
-          <Select value={v.project_type_id} onValueChange={(val) => form.setValue("project_type_id", val)}>
+        <Field
+          label="Project type"
+          required
+          hint="Rate loads from the price list and stays editable"
+        >
+          <Select
+            value={v.project_type_id}
+            onValueChange={(val) => form.setValue("project_type_id", val)}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select type" />
             </SelectTrigger>
@@ -151,7 +164,10 @@ export function ProjectForm({
         </Field>
 
         <Field label="Status">
-          <Select value={v.status} onValueChange={(val) => form.setValue("status", val as Project["status"])}>
+          <Select
+            value={v.status}
+            onValueChange={(val) => form.setValue("status", val as Project["status"])}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -166,19 +182,39 @@ export function ProjectForm({
         </Field>
 
         <Field label="Quantity" required>
-          <Input type="number" step="0.01" min="0" {...form.register("quantity", { valueAsNumber: true })} />
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            {...form.register("quantity", { valueAsNumber: true })}
+          />
         </Field>
 
         <Field label="Rate (₹)" required>
-          <Input type="number" step="0.01" min="0" {...form.register("rate", { valueAsNumber: true })} />
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            {...form.register("rate", { valueAsNumber: true })}
+          />
         </Field>
 
         <Field label="Editing expense (₹)">
-          <Input type="number" step="0.01" min="0" {...form.register("editing_expense", { valueAsNumber: true })} />
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            {...form.register("editing_expense", { valueAsNumber: true })}
+          />
         </Field>
 
         <Field label="Production expense (₹)">
-          <Input type="number" step="0.01" min="0" {...form.register("production_expense", { valueAsNumber: true })} />
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            {...form.register("production_expense", { valueAsNumber: true })}
+          />
         </Field>
 
         {can("viewPartnerFinance") && (

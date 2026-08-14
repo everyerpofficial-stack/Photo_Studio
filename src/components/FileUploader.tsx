@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Download, FileText, Loader2, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { deleteDocument, getDocumentUrl, uploadDocument } from "@/lib/documents";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useDocuments } from "@/lib/api";
@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 
 const ALLOWED = ["jpg", "jpeg", "png", "webp", "pdf", "xlsx", "csv"];
 const MAX_MB = 10;
-const BUCKET = "leonis-files";
 
 export function FileUploader({
   entityType,
@@ -45,20 +44,16 @@ export function FileUploader({
         toast.error(`${file.name}: file must be under ${MAX_MB} MB.`);
         continue;
       }
-      const path = `${entityType}/${entityId}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from(BUCKET).upload(path, file);
-      if (error) {
-        toast.error(`Upload failed: ${error.message}`);
+      const form = new FormData();
+      form.set("file", file);
+      form.set("entityType", entityType);
+      form.set("entityId", entityId);
+      try {
+        await uploadDocument({ data: form });
+      } catch (e) {
+        toast.error(`Upload failed: ${e instanceof Error ? e.message : "Unknown error"}`);
         continue;
       }
-      await supabase.from("documents").insert({
-        entity_type: entityType,
-        entity_id: entityId,
-        file_path: path,
-        file_name: file.name,
-        mime_type: file.type,
-        size_bytes: file.size,
-      });
       done += 1;
       setProgress(Math.round((done / files.length) * 100));
     }
@@ -68,19 +63,19 @@ export function FileUploader({
     qc.invalidateQueries({ queryKey: ["documents", entityType, entityId] });
   };
 
-  const open = async (path: string) => {
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
-    if (error || !data) {
+  const open = async (id: string) => {
+    try {
+      const { dataUrl } = await getDocumentUrl({ data: { id } });
+      window.open(dataUrl, "_blank");
+    } catch {
       toast.error("Could not open file.");
-      return;
     }
-    window.open(data.signedUrl, "_blank");
   };
 
-  const remove = async (id: string, path: string) => {
-    await supabase.storage.from(BUCKET).remove([path]);
-    const { error } = await supabase.from("documents").delete().eq("id", id);
-    if (error) {
+  const remove = async (id: string) => {
+    try {
+      await deleteDocument({ data: { id } });
+    } catch {
       toast.error("You do not have permission to delete files.");
       return;
     }
@@ -92,7 +87,9 @@ export function FileUploader({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">{label}</p>
-        {docs.length > 0 && <span className="text-xs text-muted-foreground">{docs.length} file(s)</span>}
+        {docs.length > 0 && (
+          <span className="text-xs text-muted-foreground">{docs.length} file(s)</span>
+        )}
       </div>
 
       <div
@@ -125,11 +122,18 @@ export function FileUploader({
               {entityId ? "Drag & drop, or" : "Save the record first to attach files"}
             </p>
             {entityId && (
-              <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => inputRef.current?.click()}
+              >
                 Choose files
               </Button>
             )}
-            <p className="text-[11px] text-muted-foreground">JPG, PNG, WEBP, PDF, XLSX, CSV · max {MAX_MB} MB</p>
+            <p className="text-[11px] text-muted-foreground">
+              JPG, PNG, WEBP, PDF, XLSX, CSV · max {MAX_MB} MB
+            </p>
           </>
         )}
         <input
@@ -154,14 +158,14 @@ export function FileUploader({
                 {fmtDate(d.created_at)} · {Math.round(Number(d.size_bytes ?? 0) / 1024)} KB
               </p>
             </div>
-            <Button type="button" variant="ghost" size="icon" onClick={() => void open(d.file_path)}>
+            <Button type="button" variant="ghost" size="icon" onClick={() => void open(d.id)}>
               <Download className="size-4" />
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              onClick={() => void remove(d.id, d.file_path)}
+              onClick={() => void remove(d.id)}
               className="text-danger-foreground"
             >
               <Trash2 className="size-4" />
