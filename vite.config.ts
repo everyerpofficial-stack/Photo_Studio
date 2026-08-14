@@ -18,4 +18,22 @@ export default defineConfig({
   nitro: {
     preset: "vercel",
   },
+  // Forces the SSR server bundle into a single file instead of Rolldown's
+  // default chunk-splitting. Without this, Nitro's Vercel preset code-splits
+  // @tanstack/react-start's server entry into two chunks that circularly
+  // import from each other, and framework-internal code (e.g. the default
+  // CSRF middleware) gets called before the chunk defining it has finished
+  // initializing — crashing every request in production with errors like
+  // "createCsrfMiddleware is not a function". This bundling quirk doesn't
+  // reproduce in dev mode (Vite serves unbundled ESM there), only in the
+  // production build actually deployed to Vercel.
+  vite: {
+    build: {
+      rollupOptions: {
+        output: {
+          inlineDynamicImports: true,
+        },
+      },
+    },
+  },
 });
