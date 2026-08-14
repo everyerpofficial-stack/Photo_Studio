@@ -38,8 +38,8 @@ type NavItem = { to: string; label: string; icon: ReactNode; perm?: Permission }
 
 const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: <LayoutDashboard className="size-4" /> },
-  { to: "/projects", label: "Shoots & Projects", icon: <CalendarRange className="size-4" /> },
   { to: "/clients", label: "Clients", icon: <Building2 className="size-4" /> },
+  { to: "/projects", label: "Shoots & Projects", icon: <CalendarRange className="size-4" /> },
   { to: "/payments", label: "Payments", icon: <BadgeIndianRupee className="size-4" />, perm: "viewFinance" },
   { to: "/expenses", label: "Expenses", icon: <Receipt className="size-4" />, perm: "viewFinance" },
   { to: "/partners", label: "Partners", icon: <Wallet className="size-4" />, perm: "viewPartnerFinance" },
