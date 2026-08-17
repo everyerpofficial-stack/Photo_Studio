@@ -20,6 +20,7 @@ export type StoreData = {
   expenses: Row[];
   partner_capital: Row[];
   partner_drawings: Row[];
+  partner_reimbursements: Row[];
   documents: Row[];
   audit_logs: Row[];
   notifications: Row[];
@@ -45,6 +46,7 @@ const WRITABLE_TABLES = new Set<keyof StoreData>([
   "profiles",
   "partner_capital",
   "partner_drawings",
+  "partner_reimbursements",
 ]);
 
 const SOFT_DELETE_TABLES = new Set(["clients", "projects", "payments", "expenses"]);
@@ -155,6 +157,7 @@ function getInitialStore(): StoreData {
     expenses: [],
     partner_capital: [],
     partner_drawings: [],
+    partner_reimbursements: [],
     documents: [],
     audit_logs: [],
     notifications: [],
@@ -169,7 +172,9 @@ export function loadStore(): StoreData {
     try {
       const raw = window.localStorage.getItem(STORE_KEY);
       if (raw) {
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (!parsed.partner_reimbursements) parsed.partner_reimbursements = [];
+        return parsed;
       }
     } catch {
       // Fallback
@@ -184,6 +189,9 @@ export function loadStore(): StoreData {
   }
   if (!memoryStoreCache) {
     memoryStoreCache = getInitialStore();
+  }
+  if (!memoryStoreCache.partner_reimbursements) {
+    memoryStoreCache.partner_reimbursements = [];
   }
   return memoryStoreCache;
 }
@@ -514,6 +522,14 @@ export const listPartnerCapital = async () => {
 export const listPartnerDrawings = async () => {
     const store = loadStore();
     const rows = (store.partner_drawings || []).sort((a, b) =>
+      String(b["entry_date"] ?? "").localeCompare(String(a["entry_date"] ?? "")),
+    );
+    return mapRows(rows);
+  };
+
+export const listPartnerReimbursements = async () => {
+    const store = loadStore();
+    const rows = (store.partner_reimbursements || []).sort((a, b) =>
       String(b["entry_date"] ?? "").localeCompare(String(a["entry_date"] ?? "")),
     );
     return mapRows(rows);

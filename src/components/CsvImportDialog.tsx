@@ -149,9 +149,6 @@ export function CsvImportDialog() {
         } else if (isNaN(amount) || amount <= 0) {
           isValid = false;
           error = `Invalid amount '${rawAmt}'.`;
-        } else if (amount > 10000 && !rawBill) {
-          isValid = false;
-          error = "Bill number is required for expenses above ₹10,000.";
         }
 
         parsed.push({

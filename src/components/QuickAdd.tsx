@@ -1,16 +1,18 @@
 import { useState } from "react";
-import { BadgeIndianRupee, Building2, CalendarRange, Plus, Receipt, X } from "lucide-react";
+import { ArrowDownLeft, BadgeIndianRupee, Building2, CalendarRange, Plus, Receipt, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FormDialog } from "@/components/FormDialog";
 import { ProjectForm } from "@/components/forms/ProjectForm";
 import { PaymentForm } from "@/components/forms/PaymentForm";
 import { ExpenseForm } from "@/components/forms/ExpenseForm";
 import { ClientForm } from "@/components/forms/ClientForm";
+import { PartnerReimbursementForm } from "@/components/forms/PartnerReimbursementForm";
 
 const ACTIONS = [
   { label: "New shoot", icon: <CalendarRange className="size-4" />, color: "bg-primary" },
   { label: "New payment", icon: <BadgeIndianRupee className="size-4" />, color: "bg-success-foreground" },
   { label: "New expense", icon: <Receipt className="size-4" />, color: "bg-warning-foreground" },
+  { label: "Return to partner", icon: <ArrowDownLeft className="size-4" />, color: "bg-[#0ea5e9]" },
   { label: "New client", icon: <Building2 className="size-4" />, color: "bg-[#6366f1]" },
 ] as const;
 
@@ -90,6 +92,14 @@ export function QuickAdd() {
         onOpenChange={(o) => !o && setDialogOpen(null)}
       >
         {(close) => <ExpenseForm onDone={close} />}
+      </FormDialog>
+
+      <FormDialog
+        title="Return to Partner (Company Repayment)"
+        open={dialogOpen === "Return to partner"}
+        onOpenChange={(o) => !o && setDialogOpen(null)}
+      >
+        {(close) => <PartnerReimbursementForm onDone={close} />}
       </FormDialog>
 
       <FormDialog

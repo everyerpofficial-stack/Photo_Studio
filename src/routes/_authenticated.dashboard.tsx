@@ -33,7 +33,7 @@ import {
   useClients,
   useExpenses,
   usePartnerCapital,
-  usePartnerDrawings,
+  usePartnerReimbursements,
   usePartners,
   usePayments,
   useProjects,
@@ -68,7 +68,7 @@ function Dashboard() {
   const { data: alerts = [] } = useAlerts();
   const { data: partners = [] } = usePartners();
   const { data: capital = [] } = usePartnerCapital();
-  const { data: drawings = [] } = usePartnerDrawings();
+  const { data: reimbursements = [] } = usePartnerReimbursements();
 
   const fp = useMemo(() => filterProjects(projects, filters), [projects, filters]);
   const fpay = useMemo(() => filterPayments(payments, filters), [payments, filters]);
@@ -78,8 +78,8 @@ function Dashboard() {
   const outstanding = stats.reduce((t, s) => t + Math.max(0, s.due), 0);
 
   const positions = useMemo(
-    () => computePartnerPositions(partners, filterExpenses(expenses, filters), capital, drawings, pl.netProfit),
-    [partners, expenses, filters, capital, drawings, pl.netProfit],
+    () => computePartnerPositions(partners, filterExpenses(expenses, filters), capital, reimbursements, pl.netProfit),
+    [partners, expenses, filters, capital, reimbursements, pl.netProfit],
   );
 
   const trend = useMemo(() => {
@@ -191,8 +191,8 @@ function Dashboard() {
               key={p.partner.id}
               label={`${p.partner.name} — profit share`}
               value={inr(p.profitShare)}
-              hint={`Capital ₹${(p.capital / 1000).toFixed(0)}K · Recovery ${pct(p.recoveryPct)}`}
-              tone={p.netPosition >= 0 ? "success" : "warning"}
+              hint={p.pendingReimbursement > 0 ? `Pending Return ${inr(p.pendingReimbursement)}` : `Capital ${inr(p.capital)}`}
+              tone={p.pendingReimbursement > 0 ? "warning" : "success"}
               icon={<Users2 className="size-4" />}
               to="/partners"
             />

@@ -12,6 +12,7 @@ import {
   listNotifications as listNotificationsFn,
   listPartnerCapital as listPartnerCapitalFn,
   listPartnerDrawings as listPartnerDrawingsFn,
+  listPartnerReimbursements as listPartnerReimbursementsFn,
   listPartners as listPartnersFn,
   listPaymentModes as listPaymentModesFn,
   listPayments as listPaymentsFn,
@@ -197,6 +198,31 @@ export const usePartnerDrawings = () =>
       >,
   });
 
+export type PartnerReimbursement = {
+  id: string;
+  partner_id: string;
+  entry_date: string;
+  amount: number;
+  mode_id?: string | null;
+  notes: string | null;
+};
+
+export const usePartnerReimbursements = () =>
+  useQuery({
+    queryKey: ["partner_reimbursements"],
+    queryFn: () =>
+      listPartnerReimbursementsFn() as Promise<
+        {
+          id: string;
+          partner_id: string;
+          entry_date: string;
+          amount: number;
+          mode_id?: string | null;
+          notes: string | null;
+        }[]
+      >,
+  });
+
 export const useAlerts = () =>
   useQuery({
     queryKey: ["alerts"],
@@ -288,6 +314,7 @@ const invalidateAll = (qc: ReturnType<typeof useQueryClient>) => {
     "partners",
     "partner_capital",
     "partner_drawings",
+    "partner_reimbursements",
     "alerts",
     "audit_logs",
     "notifications",
@@ -482,57 +509,56 @@ export function buildLedger(projects: Project[], payments: Payment[]): LedgerEnt
 export type PartnerPosition = {
   partner: Partner;
   capital: number;
+  partnerExpenses: number;
+  reimbursed: number;
+  pendingReimbursement: number;
+  profitShare: number;
+  netPosition: number;
+  recoveryPct: number;
+  totalSpend: number;
+  // Backwards compatibility properties
   drawings: number;
   operating: number;
   financing: number;
   capitalSpend: number;
-  totalSpend: number;
-  profitShare: number;
-  netPosition: number;
-  recoveryPct: number;
 };
 
 export function computePartnerPositions(
   partners: Partner[],
   expenses: Expense[],
   capital: { partner_id: string; amount: number }[],
-  drawings: { partner_id: string; amount: number }[],
+  reimbursements: { partner_id: string; amount: number }[],
   distributableProfit: number,
 ): PartnerPosition[] {
   return partners.map((partner) => {
     const ex = expenses.filter((e) => e.partner_id === partner.id);
-    const operating = sum(
-      ex.filter((e) => e.expense_class === "operating"),
-      (e) => Number(e.amount),
-    );
-    const financing = sum(
-      ex.filter((e) => e.expense_class === "financing"),
-      (e) => Number(e.amount),
-    );
-    const capitalSpend = sum(
-      ex.filter((e) => e.expense_class === "capital"),
-      (e) => Number(e.amount),
-    );
+    const partnerExpenses = sum(ex, (e) => Number(e.amount));
     const invested = sum(
       capital.filter((c) => c.partner_id === partner.id),
       (c) => Number(c.amount),
     );
-    const drawn = sum(
-      drawings.filter((d) => d.partner_id === partner.id),
+    const repaid = sum(
+      reimbursements.filter((d) => d.partner_id === partner.id),
       (d) => Number(d.amount),
     );
+    const pendingReimbursement = Math.max(0, partnerExpenses - repaid);
     const profitShare = (distributableProfit * Number(partner.profit_share)) / 100;
+    const netPosition = invested + (partnerExpenses - repaid) + profitShare;
+
     return {
       partner,
       capital: invested,
-      drawings: drawn,
-      operating,
-      financing,
-      capitalSpend,
-      totalSpend: operating + financing + capitalSpend,
+      partnerExpenses,
+      reimbursed: repaid,
+      pendingReimbursement,
       profitShare,
-      netPosition: invested + profitShare - drawn,
+      netPosition,
+      totalSpend: partnerExpenses,
       recoveryPct: invested > 0 ? Math.min(100, (profitShare / invested) * 100) : 0,
+      drawings: repaid,
+      operating: partnerExpenses,
+      financing: 0,
+      capitalSpend: 0,
     };
   });
 }

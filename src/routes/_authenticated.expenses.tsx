@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { Pencil, Trash2 } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowDownLeft, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -20,6 +20,7 @@ import { CsvImportDialog } from "@/components/CsvImportDialog";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { KpiCard, PageHeader, StatusChip } from "@/components/Primitives";
 import { ExpenseForm } from "@/components/forms/ExpenseForm";
+import { PartnerReimbursementForm } from "@/components/forms/PartnerReimbursementForm";
 import {
   defaultFilters,
   filterExpenses,
@@ -27,6 +28,7 @@ import {
   useDeleteRecord,
   useExpenseCategories,
   useExpenses,
+  usePartnerReimbursements,
   usePartners,
   type Expense,
   type Filters,
@@ -38,32 +40,55 @@ export const Route = createFileRoute("/_authenticated/expenses")({
   head: () => ({
     meta: [
       { title: "Expenses — LEONIS" },
-      { name: "description", content: "Operating, capital and financing expenses with bills and partner attribution." },
+      { name: "description", content: "Company and client expenses with partner payment and reimbursement tracking." },
       { property: "og:title", content: "Expenses — LEONIS" },
-      { property: "og:description", content: "Operating, capital and financing expense register." },
+      { property: "og:description", content: "Company and client expenses register." },
       { name: "robots", content: "noindex" },
     ],
   }),
   component: ExpensesPage,
 });
 
-const CLASS_TONE = { operating: "warning", capital: "primary", financing: "neutral" } as const;
-
 function ExpensesPage() {
   const [filters, setFilters] = useState<Filters>(defaultFilters);
-  const [cls, setCls] = useState("all");
+  const [scopeFilter, setScopeFilter] = useState<"all" | "company" | "client">("all");
+  const [payerFilter, setPayerFilter] = useState<string>("all"); // "all" | "company" | partnerId
   const { data: expenses = [], isLoading } = useExpenses();
   const { data: categories = [] } = useExpenseCategories();
   const { data: partners = [] } = usePartners();
+  const { data: reimbursements = [] } = usePartnerReimbursements();
   const del = useDeleteRecord("expenses", "Expense");
   const can = useCan();
 
   const rows = useMemo(() => {
-    const base = filterExpenses(expenses, filters);
-    return cls === "all" ? base : base.filter((e) => e.expense_class === cls);
-  }, [expenses, filters, cls]);
+    let base = filterExpenses(expenses, filters);
 
-  const byClass = (k: Expense["expense_class"]) => sum(rows.filter((e) => e.expense_class === k), (e) => Number(e.amount));
+    // Scope filter (Company vs Client)
+    if (scopeFilter === "company") {
+      base = base.filter((e) => !e.client_id);
+    } else if (scopeFilter === "client") {
+      base = base.filter((e) => !!e.client_id);
+    }
+
+    // Payer filter (Company vs specific Partner)
+    if (payerFilter === "company") {
+      base = base.filter((e) => !e.partner_id);
+    } else if (payerFilter !== "all") {
+      base = base.filter((e) => e.partner_id === payerFilter);
+    }
+
+    return base;
+  }, [expenses, filters, scopeFilter, payerFilter]);
+
+  // Financial summary calculations
+  const totalSpend = sum(rows, (e) => Number(e.amount));
+  const companyPaid = sum(rows.filter((e) => !e.partner_id), (e) => Number(e.amount));
+  const partnerPaid = sum(rows.filter((e) => !!e.partner_id), (e) => Number(e.amount));
+
+  // Total partner expenses across all time vs total reimbursements
+  const allPartnerExpenses = sum(expenses.filter((e) => !!e.partner_id), (e) => Number(e.amount));
+  const allReimbursements = sum(reimbursements, (r) => Number(r.amount));
+  const totalPendingReimbursement = Math.max(0, allPartnerExpenses - allReimbursements);
 
   const columns: Column<Expense>[] = [
     {
@@ -73,19 +98,68 @@ function ExpensesPage() {
       sortValue: (e) => e.expense_date,
       exportValue: (e) => fmtDate(e.expense_date),
     },
-    { key: "category", header: "Category", cell: (e) => e.expense_categories?.name ?? "—", sortValue: (e) => e.expense_categories?.name ?? "" },
     {
-      key: "class",
-      header: "Class",
-      cell: (e) => <StatusChip label={e.expense_class} tone={CLASS_TONE[e.expense_class]} />,
-      sortValue: (e) => e.expense_class,
-      exportValue: (e) => e.expense_class,
+      key: "category",
+      header: "Category",
+      cell: (e) => (
+        <span className="font-medium text-foreground">
+          {e.expense_categories?.name ?? "—"}
+        </span>
+      ),
+      sortValue: (e) => e.expense_categories?.name ?? "",
     },
-    { key: "amount", header: "Amount", align: "right", cell: (e) => inr(e.amount), sortValue: (e) => Number(e.amount) },
-    { key: "partner", header: "Paid by", cell: (e) => e.partners?.name ?? "—", sortValue: (e) => e.partners?.name ?? "" },
-    { key: "client", header: "Client", cell: (e) => e.clients?.name ?? "—", sortValue: (e) => e.clients?.name ?? "", defaultHidden: true },
-    { key: "bill", header: "Bill no.", cell: (e) => e.bill_no ?? "—", sortValue: (e) => e.bill_no ?? "" },
-    { key: "notes", header: "Notes", cell: (e) => e.notes ?? "—", sortValue: (e) => e.notes ?? "", defaultHidden: true },
+    {
+      key: "for",
+      header: "Expense For",
+      cell: (e) =>
+        e.client_id ? (
+          <span className="font-medium text-primary truncate max-w-[160px]">
+            {e.clients?.name ?? "Client Shoot"}
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-xs font-medium">Company</span>
+        ),
+      sortValue: (e) => e.clients?.name ?? "Company",
+      exportValue: (e) => (e.client_id ? `Client: ${e.clients?.name ?? ""}` : "Company"),
+    },
+    {
+      key: "payer",
+      header: "Paid By",
+      cell: (e) =>
+        e.partner_id ? (
+          <span className="inline-flex rounded-full bg-warning/15 px-2.5 py-0.5 text-[11px] font-semibold text-warning-foreground">
+            Partner: {e.partners?.name ?? "Partner"}
+          </span>
+        ) : (
+          <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+            Company Account
+          </span>
+        ),
+      sortValue: (e) => e.partners?.name ?? "Company Account",
+      exportValue: (e) => (e.partner_id ? `Partner: ${e.partners?.name ?? ""}` : "Company Account"),
+    },
+    {
+      key: "amount",
+      header: "Amount",
+      align: "right",
+      cell: (e) => <span className="font-semibold tabular-nums">{inr(e.amount)}</span>,
+      sortValue: (e) => Number(e.amount),
+    },
+    {
+      key: "bill",
+      header: "Bill No.",
+      cell: (e) => (
+        <span className="font-mono text-xs text-muted-foreground">{e.bill_no ?? "—"}</span>
+      ),
+      sortValue: (e) => e.bill_no ?? "",
+    },
+    {
+      key: "notes",
+      header: "Notes",
+      cell: (e) => <span className="line-clamp-1 text-xs text-muted-foreground">{e.notes ?? "—"}</span>,
+      sortValue: (e) => e.notes ?? "",
+      defaultHidden: true,
+    },
     {
       key: "actions",
       header: "",
@@ -133,11 +207,21 @@ function ExpensesPage() {
     <div>
       <PageHeader
         title="Expenses"
-        description="Every rupee out, classified for clean P&L and balance reporting."
+        description="Track company and client expenses, who paid for each expense, and partner repayments."
         actions={
           can("editProjects") ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <CsvImportDialog />
+              <FormDialog
+                title="Return to Partner (Company Repayment)"
+                trigger={
+                  <Button variant="outline" className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10">
+                    <ArrowDownLeft className="size-4" /> Return to Partner
+                  </Button>
+                }
+              >
+                {(close) => <PartnerReimbursementForm onDone={close} />}
+              </FormDialog>
               <FormDialog title="New expense" triggerLabel="New expense">
                 {(close) => <ExpenseForm onDone={close} />}
               </FormDialog>
@@ -147,10 +231,30 @@ function ExpensesPage() {
       />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Total spend" value={inr(sum(rows, (e) => Number(e.amount)))} hint={`${rows.length} entries`} tone="danger" />
-        <KpiCard label="Operating" value={inr(byClass("operating"))} tone="warning" />
-        <KpiCard label="Capital" value={inr(byClass("capital"))} />
-        <KpiCard label="Financing" value={inr(byClass("financing"))} />
+        <KpiCard
+          label="Total spend"
+          value={inr(totalSpend)}
+          hint={`${rows.length} entries in period`}
+        />
+        <KpiCard
+          label="Paid by Company"
+          value={inr(companyPaid)}
+          hint="From company bank/cash"
+          tone="primary"
+        />
+        <KpiCard
+          label="Paid by Partners"
+          value={inr(partnerPaid)}
+          hint="Paid out-of-pocket"
+          tone="warning"
+        />
+        <KpiCard
+          label="Pending Partner Return"
+          value={inr(totalPendingReimbursement)}
+          hint={totalPendingReimbursement > 0 ? "Company owes to partners" : "All settled"}
+          tone={totalPendingReimbursement > 0 ? "danger" : "success"}
+          to="/partners"
+        />
       </div>
 
       <DataTable
@@ -159,43 +263,63 @@ function ExpensesPage() {
         loading={isLoading}
         rowKey={(e) => e.id}
         exportName="LEONIS-expenses"
-        searchPlaceholder="Search category, bill, notes…"
-        searchFields={(e) => [e.expense_categories?.name, e.bill_no, e.notes, e.partners?.name, e.clients?.name].filter(Boolean).join(" ")}
-        emptyMessage="No expenses in this period."
+        searchPlaceholder="Search category, bill, notes, partner, client…"
+        searchFields={(e) =>
+          [
+            e.expense_categories?.name,
+            e.bill_no,
+            e.notes,
+            e.partners?.name,
+            e.clients?.name,
+          ]
+            .filter(Boolean)
+            .join(" ")
+        }
+        emptyMessage="No expenses found matching the selected filters."
         filters={
           <div className="flex flex-wrap items-center gap-2">
             <DateRangeFilter value={filters} onChange={setFilters} />
-            <Select value={filters.partnerId ?? "all"} onValueChange={(v) => setFilters({ ...filters, partnerId: v === "all" ? undefined : v })}>
+
+            {/* Scope Filter */}
+            <Select
+              value={scopeFilter}
+              onValueChange={(v) => setScopeFilter(v as "all" | "company" | "client")}
+            >
               <SelectTrigger className="h-8 text-xs w-[140px]">
+                <SelectValue placeholder="Expense For" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All expenses</SelectItem>
+                <SelectItem value="company">Company only</SelectItem>
+                <SelectItem value="client">Client shoots</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Paid By Filter */}
+            <Select value={payerFilter} onValueChange={setPayerFilter}>
+              <SelectTrigger className="h-8 text-xs w-[160px]">
                 <SelectValue placeholder="Paid by" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All partners</SelectItem>
+                <SelectItem value="all">All payers</SelectItem>
+                <SelectItem value="company">Company Account</SelectItem>
                 {partners.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.name}
+                    Partner: {p.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select value={cls} onValueChange={setCls}>
-              <SelectTrigger className="h-8 text-xs w-[140px]">
-                <SelectValue placeholder="Class" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All classes</SelectItem>
-                <SelectItem value="operating">Operating</SelectItem>
-                <SelectItem value="capital">Capital</SelectItem>
-                <SelectItem value="financing">Financing</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="hidden text-[11px] text-muted-foreground sm:inline">{categories.length} categories</span>
+
+            <span className="hidden text-[11px] text-muted-foreground sm:inline">
+              {categories.length} categories
+            </span>
           </div>
         }
         footer={(r) => (
           <>
             <span className="font-semibold">Total</span>
-            <span className="tabular-nums">{inr(sum(r, (e) => Number(e.amount)))}</span>
+            <span className="tabular-nums font-bold">{inr(sum(r, (e) => Number(e.amount)))}</span>
           </>
         )}
       />
